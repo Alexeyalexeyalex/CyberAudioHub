@@ -1,0 +1,409 @@
+/* static/css/style.css */
+
+:root {
+    --primary-color: #00f2ff;
+    --secondary-color: #ff00ff;
+    --dark-bg: #0d041a;
+    --card-bg: rgba(23, 12, 46, 0.6);
+    --text-color: #e0e0e0;
+    --glow-primary: 0 0 5px var(--primary-color), 0 0 10px var(--primary-color), 0 0 15px var(--primary-color);
+    --glow-secondary-soft: 0 0 8px var(--secondary-color);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Rajdhani', sans-serif;
+    background-color: var(--dark-bg);
+    color: var(--text-color);
+    overflow-x: hidden;
+}
+
+.background-effects {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: linear-gradient(rgba(13, 4, 26, 0.95), rgba(13, 4, 26, 0.95)), radial-gradient(var(--primary-color) 0.5px, transparent 0.5px), radial-gradient(var(--secondary-color) 0.5px, transparent 0.5px);
+    background-size: 100% 100%, 20px 20px, 20px 20px;
+    background-position: 0 0, -10px -10px, 0px 0px;
+    z-index: -1;
+    animation: glitch-lines 15s linear infinite;
+}
+
+@keyframes glitch-lines {
+    0% {
+        background-position: 0 0, -10px -10px, 0px 0px;
+    }
+
+    25% {
+        background-position: 0 0, -5px 5px, -10px 10px;
+    }
+
+    50% {
+        background-position: 0 0, 10px -10px, 5px -5px;
+    }
+
+    75% {
+        background-position: 0 0, 5px 5px, 10px -10px;
+    }
+
+    100% {
+        background-position: 0 0, -10px -10px, 0px 0px;
+    }
+}
+
+h1,
+h2 {
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 2px;
+}
+
+h1 {
+    font-size: 3rem;
+    color: var(--primary-color);
+    text-shadow: var(--glow-primary);
+}
+
+h2 {
+    font-size: 1.8rem;
+    color: var(--secondary-color);
+    text-shadow: var(--glow-secondary-soft);
+    margin-bottom: 1.5rem;
+    position: relative;
+    padding-left: 20px;
+}
+
+h2::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 10px;
+    height: 10px;
+    background: var(--secondary-color);
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+
+.main-header,
+.main-footer {
+    text-align: center;
+    padding: 2rem 1rem;
+}
+
+.main-header .subtitle {
+    font-size: 1.2rem;
+    color: var(--text-color);
+    opacity: 0.8;
+}
+
+main {
+    padding: 1rem 2rem;
+}
+
+.album-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 2rem;
+}
+
+.album-card {
+    background: var(--card-bg);
+    border: 1px solid var(--primary-color);
+    backdrop-filter: blur(5px);
+    text-decoration: none;
+    color: var(--text-color);
+    display: block;
+    overflow: hidden;
+    position: relative;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    clip-path: polygon(0 20px, 20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%);
+}
+
+.album-card:hover {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: var(--glow-primary);
+}
+
+.album-card__image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    display: block;
+    transition: filter 0.3s ease;
+}
+
+.album-card:hover .album-card__image {
+    filter: brightness(1.2) saturate(1.2);
+}
+
+.album-card__info {
+    padding: 1rem;
+}
+
+.album-card__title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin: 0;
+    text-shadow: 0 0 5px var(--primary-color);
+}
+
+.player-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.back-button {
+    display: inline-block;
+    color: var(--secondary-color);
+    text-decoration: none;
+    margin-bottom: 2rem;
+    font-weight: 700;
+    border: 1px solid var(--secondary-color);
+    padding: 0.5rem 1rem;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.back-button:hover {
+    background-color: var(--secondary-color);
+    color: var(--dark-bg);
+    text-shadow: none;
+}
+
+.player-container {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 2rem;
+    background: var(--card-bg);
+    border: 1px solid var(--secondary-color);
+    padding: 2rem;
+    backdrop-filter: blur(10px);
+    clip-path: polygon(0 20px, 20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%);
+}
+
+.player-album-art {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1/1;
+    object-fit: cover;
+    border: 1px solid var(--primary-color);
+}
+
+.player-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.player-details h3 {
+    font-size: 2.5rem;
+    color: var(--primary-color);
+    text-shadow: var(--glow-primary);
+    margin: 0 0 0.5rem;
+}
+
+#current-track-title {
+    font-size: 1.2rem;
+    opacity: 0.9;
+    min-height: 1.5em;
+    margin-bottom: 1rem;
+}
+
+.progress-container {
+    background: rgba(0, 0, 0, 0.3);
+    height: 10px;
+    cursor: pointer;
+    margin-bottom: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.progress-bar {
+    background: var(--primary-color);
+    height: 100%;
+    width: 0%;
+    box-shadow: var(--glow-primary);
+    transition: width 0.1s linear;
+}
+
+.time-stamps {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+.player-controls {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.control-btn {
+    background: transparent;
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
+    font-size: 1.5rem;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.3s, text-shadow 0.3s;
+}
+
+.control-btn:hover {
+    background-color: rgba(0, 242, 255, 0.1);
+    text-shadow: var(--glow-primary);
+}
+
+.play-btn {
+    width: 70px;
+    height: 70px;
+    font-size: 2rem;
+    border-color: var(--secondary-color);
+    color: var(--secondary-color);
+}
+
+.play-btn:hover {
+    background-color: rgba(255, 0, 255, 0.1);
+    text-shadow: var(--glow-secondary-soft);
+}
+
+.shuffle-btn.active {
+    background-color: var(--primary-color);
+    color: var(--dark-bg);
+    text-shadow: none;
+}
+
+.track-list {
+    margin-top: 2rem;
+    max-height: 250px;
+    overflow-y: auto;
+    list-style: none;
+    padding-right: 10px;
+}
+
+.track-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.track-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.track-list::-webkit-scrollbar-thumb {
+    background-color: var(--primary-color);
+    border-radius: 20px;
+    border: 2px solid var(--dark-bg);
+}
+
+.track-item {
+    padding: 0.75rem 0.5rem;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(0, 242, 255, 0.1);
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.track-item:hover {
+    background-color: rgba(0, 242, 255, 0.1);
+}
+
+.track-item.playing {
+    color: var(--primary-color);
+    font-weight: 700;
+}
+
+.track-item .track-number {
+    margin-right: 1rem;
+    color: var(--secondary-color);
+    font-weight: 500;
+    min-width: 25px;
+}
+
+.track-item.playing .track-number {
+    text-shadow: var(--glow-secondary-soft);
+}
+
+.error-message {
+    color: var(--secondary-color);
+    text-align: center;
+    font-size: 1.2rem;
+}
+
+@media (max-width: 900px) {
+    .player-container {
+        grid-template-columns: 1fr;
+    }
+
+    .player-album-art {
+        max-width: 300px;
+        margin: 0 auto;
+    }
+}
+
+@media (max-width: 600px) {
+    h1 {
+        font-size: 2.2rem;
+    }
+
+    h2 {
+        font-size: 1.5rem;
+    }
+
+    main {
+        padding: 1rem;
+    }
+
+    .player-page {
+        padding: 1rem;
+    }
+
+    .player-controls {
+        gap: 1rem;
+        justify-content: center;
+    }
+
+    .control-btn {
+        width: 45px;
+        height: 45px;
+        font-size: 1.2rem;
+    }
+
+    .play-btn {
+        width: 60px;
+        height: 60px;
+        font-size: 1.8rem;
+    }
+}
+
+.loading-state {
+    text-align: center;
+    padding: 5rem 0;
+    width: 100%;
+    grid-column: 1 / -1;
+}
+
+.loader {
+    margin: 1rem auto;
+    border: 4px solid rgba(255, 255, 255, 0.2);
+    border-left-color: var(--primary-color);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberAudioHub</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='assets/favicon.png') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+
+    <div class="background-effects"></div>
+
+    <header class="main-header">
+        <h1>CYBER_AUDIO_HUB</h1>
+        <p class="subtitle">Ваша коллекция будущего</p>
+    </header>
+
+    <main>
+        <section class="album-selection">
+            <h2>// ВЫБОР АЛЬБОМА</h2>
+            <div class="album-grid" id="album-grid">
+                <!-- Карточки альбомов будут вставлены сюда с помощью JavaScript -->
+                <div class="loading-state">
+                    <h2>СКАНИРОВАНИЕ МЕДИАТЕКИ...</h2>
+                    <div class="loader"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="main-footer">
+        <p>© 2077 CyberAudio Corp.</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+
+</html>
