@@ -1,34 +1,38 @@
-// static/js/player.js
 document.addEventListener('DOMContentLoaded', () => {
     const playerContainer = document.getElementById('player-container');
     const audioPlayer = document.getElementById('audio-player');
-    const API_URL = '/api/music-data';
+    const API_ENDPOINT = '/api/browse';
 
     if (!playerContainer || !audioPlayer) return;
 
     const initPlayer = async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const albumPath = urlParams.get('path');
+        if (!albumPath) {
+            playerContainer.innerHTML = '<h2>ОШИБКА: ПУТЬ К АЛЬБОМУ НЕ УКАЗАН</h2><p>Пожалуйста, вернитесь на главную и выберите альбом.</p>';
+            return;
+        }
+
         try {
-            const response = await fetch(API_URL);
-            if (!response.ok) throw new Error('Сетевой ответ был не в порядке.');
-            const albumsData = await response.json();
+            const response = await fetch(`${API_ENDPOINT}?path=${encodeURIComponent(albumPath)}`);
+            if (!response.ok) throw new Error('Альбом не найден или произошла ошибка.');
+            const currentAlbum = await response.json();
 
-            const urlParams = new URLSearchParams(window.location.search);
-            const albumId = urlParams.get('album');
-            const currentAlbum = albumsData.find(a => a.id === albumId);
-
-            if (!currentAlbum) {
-                playerContainer.innerHTML = '<h2>ОШИБКА: АЛЬБОМ НЕ НАЙДЕН</h2><p>Пожалуйста, вернитесь на главную и выберите альбом.</p>';
+            if (currentAlbum.type !== 'album') {
+                playerContainer.innerHTML = '<h2>ОШИБКА: УКАЗАННЫЙ ПУТЬ НЕ ЯВЛЯЕТСЯ АЛЬБОМОМ</h2>';
                 return;
             }
 
+            // --- Состояние плеера ---
             let currentTrackIndex = 0;
             let isPlaying = false;
             let isShuffle = false;
 
+
             function loadPlayerUI() {
                 playerContainer.innerHTML = `
                     <div class="player-album-art-container">
-                        <img src="${currentAlbum.cover}" alt="${currentAlbum.title}" class="player-album-art">
+                        <img src="${currentAlbum.cover}" alt="${currentAlbum.title}" class="player-album-art" onerror="this.onerror=null;this.src='/static/assets/default_cover.png';">
                     </div>
                     <div class="player-details">
                         <h3>${currentAlbum.title}</h3>
@@ -36,10 +40,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="progress-container" id="progress-container"><div class="progress-bar" id="progress-bar"></div></div>
                         <div class="time-stamps"><span id="current-time">0:00</span><span id="total-duration">0:00</span></div>
                         <div class="player-controls">
-                            <button class="control-btn" id="prev-btn" title="Предыдущий трек"><i class="fas fa-backward-step"></i></button>
-                            <button class="control-btn play-btn" id="play-btn" title="Воспроизвести/Пауза"><i class="fas fa-play"></i></button>
-                            <button class="control-btn" id="next-btn" title="Следующий трек"><i class="fas fa-forward-step"></i></button>
                             <button class="control-btn shuffle-btn" id="shuffle-btn" title="Перемешать"><i class="fas fa-shuffle"></i></button>
+                            <button class="control-btn" id="prev-btn" title="Предыдущий трек"><i class="fas fa-backward-step"></i></button>
+                            <button class="control-btn seek-btn" id="rewind-btn" title="-5 секунд"><i class="fas fa-rotate-left"></i></button>
+                            <button class="control-btn play-btn" id="play-btn" title="Воспроизвести/Пауза"><i class="fas fa-play"></i></button>
+                            <button class="control-btn seek-btn" id="forward-btn" title="+5 секунд"><i class="fas fa-rotate-right"></i></button>
+                            <button class="control-btn" id="next-btn" title="Следующий трек"><i class="fas fa-forward-step"></i></button>
                         </div>
                         <ol class="track-list" id="track-list"></ol>
                     </div>`;
@@ -68,7 +74,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 audioPlayer.src = track.url;
                 document.getElementById('current-track-title').textContent = track.name.replace(/\.mp3|\.ogg|\.wav|\.m4a/i, '').replace(/_/g, ' ');
                 updateTrackListHighlight();
-                audioPlayer.onloadedmetadata = () => { document.getElementById('total-duration').textContent = formatTime(audioPlayer.duration); };
+                audioPlayer.onloadedmetadata = () => {
+                    document.getElementById('total-duration').textContent = formatTime(audioPlayer.duration);
+                };
             }
 
             function playTrack() { isPlaying = true; document.getElementById('play-btn').innerHTML = '<i class="fas fa-pause"></i>'; audioPlayer.play(); updateTrackListHighlight(); }
@@ -87,6 +95,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 playTrack();
             }
 
+            function seek(seconds) { audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime + seconds); }
+
             function updateProgress() {
                 const { duration, currentTime } = audioPlayer;
                 if (duration) {
@@ -96,12 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            function setProgress(e) {
-                const width = this.clientWidth;
-                const clickX = e.offsetX;
-                const duration = audioPlayer.duration;
-                if (duration) audioPlayer.currentTime = (clickX / width) * duration;
-            }
+            function setProgress(e) { const width = this.clientWidth; const clickX = e.offsetX; const duration = audioPlayer.duration; if (duration) audioPlayer.currentTime = (clickX / width) * duration; }
 
             function updateTrackListHighlight() {
                 document.querySelectorAll('.track-item').forEach(item => item.classList.remove('playing'));
@@ -114,13 +119,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             function saveLastPlayedState() {
                 if (!audioPlayer.currentTime || audioPlayer.currentTime === 0) return;
-                const state = { albumId: currentAlbum.id, trackIndex: currentTrackIndex, currentTime: audioPlayer.currentTime };
+                const state = { path: albumPath, trackIndex: currentTrackIndex, currentTime: audioPlayer.currentTime };
                 localStorage.setItem('cyberAudioLastPlayed', JSON.stringify(state));
             }
 
             function loadLastPlayedState() {
                 const savedState = JSON.parse(localStorage.getItem('cyberAudioLastPlayed'));
-                if (savedState && savedState.albumId === currentAlbum.id) {
+                if (savedState && savedState.path === albumPath) {
                     currentTrackIndex = savedState.trackIndex;
                     loadTrack(currentTrackIndex);
                     audioPlayer.oncanplay = () => {
@@ -131,6 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             function formatTime(seconds) {
+                if (isNaN(seconds)) return '0:00';
                 const minutes = Math.floor(seconds / 60);
                 const secs = Math.floor(seconds % 60);
                 return `${minutes}:${secs.toString().padStart(2, '0')}`;
@@ -140,13 +146,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('play-btn').addEventListener('click', () => { isPlaying ? pauseTrack() : playTrack(); });
                 document.getElementById('prev-btn').addEventListener('click', prevTrack);
                 document.getElementById('next-btn').addEventListener('click', nextTrack);
+                document.getElementById('rewind-btn').addEventListener('click', () => seek(-5));
+                document.getElementById('forward-btn').addEventListener('click', () => seek(5));
                 document.getElementById('shuffle-btn').addEventListener('click', () => { isShuffle = !isShuffle; document.getElementById('shuffle-btn').classList.toggle('active', isShuffle); });
+
                 audioPlayer.addEventListener('timeupdate', updateProgress);
                 audioPlayer.addEventListener('ended', nextTrack);
                 audioPlayer.addEventListener('pause', saveLastPlayedState);
                 document.getElementById('progress-container').addEventListener('click', setProgress);
             }
 
+            // --- Инициализация ---
             loadPlayerUI();
 
         } catch (error) {

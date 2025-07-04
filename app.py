@@ -1,77 +1,112 @@
 # app.py
 import os
-import json
-from flask import Flask, jsonify, render_template, url_for
+from flask import Flask, jsonify, render_template, url_for, request, abort
 
-# Инициализируем Flask приложение
+# --- КОНФИГУРАЦИЯ ---
+APP_PORT = 2077
+
 app = Flask(__name__)
+MUSIC_FOLDER_ROOT = os.path.join(app.static_folder, 'music')
 
-# Путь к папке с музыкой внутри 'static'
-MUSIC_FOLDER = os.path.join(app.static_folder, 'music')
+def has_music_recursive(directory_path):
+    """
+    Рекурсивно проверяет, содержит ли папка (или ее подпапки) хотя бы один аудиофайл.
+    """
+    for root, dirs, files in os.walk(directory_path):
+        for file in files:
+            if file.lower().endswith(('.mp3', '.ogg', '.wav', '.m4a')):
+                return True
+    return False
 
-# Главная страница, которая показывает все альбомы
+# --- Маршруты страниц ---
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# Страница плеера
 @app.route('/player')
 def player():
     return render_template('player.html')
 
-
-# API эндпоинт, который сканирует папки и возвращает данные в формате JSON
-@app.route('/api/music-data')
-def get_music_data():
-    albums = []
-    if not os.path.exists(MUSIC_FOLDER):
-        return jsonify({"error": "Music directory not found"}), 404
-
-    # Сканируем папки альбомов
-    for album_name in sorted(os.listdir(MUSIC_FOLDER)):
-        album_path = os.path.join(MUSIC_FOLDER, album_name)
-        if os.path.isdir(album_path):
-            
-            # Формируем базовую структуру данных для альбома
-            album_data = {
-                "id": album_name.lower().replace(' ', '-').replace('_', '-'),
-                "title": album_name.replace('_', ' '),
-                "tracks": []
-            }
-
-            # Ищем обложку и треки внутри папки альбома
-            found_cover = None
-            track_files = []
-
-            for filename in sorted(os.listdir(album_path)):
-                # Формируем часть пути для URL
-                url_path_part = os.path.join('music', album_name, filename)
-                # ИСПРАВЛЕНИЕ: Заменяем системные разделители на веб-разделители
-                web_path = url_path_part.replace('\\', '/')
-
-                # Ищем аудиофайлы
-                if filename.lower().endswith(('.mp3', '.ogg', '.wav', '.m4a')):
-                    track_url = url_for('static', filename=web_path)
-                    track_files.append({"name": filename, "url": track_url})
-                
-                # Ищем обложку
-                if filename.lower().startswith('cover') and filename.lower().endswith(('.jpg', '.jpeg', '.png')):
-                    found_cover = url_for('static', filename=web_path)
-
-            # Устанавливаем обложку (найденную или по умолчанию)
-            default_cover_path = os.path.join('assets', 'default_cover.png').replace('\\', '/')
-            album_data["cover"] = found_cover if found_cover else url_for('static', filename=default_cover_path)
-            
-            # Добавляем отсортированные треки
-            album_data["tracks"] = sorted(track_files, key=lambda x: x['name'])
-
-            # Добавляем альбом в список, только если в нем есть треки
-            if album_data["tracks"]:
-                albums.append(album_data)
+# --- API ---
+@app.route('/api/browse')
+def api_browse():
+    """
+    Главный API-эндпоинт. Принимает 'path' и возвращает содержимое.
+    """
+    relative_path = request.args.get('path', '').strip('/')
+    current_path = os.path.join(MUSIC_FOLDER_ROOT, relative_path)
     
-    return jsonify(albums)
+    if not os.path.abspath(current_path).startswith(os.path.abspath(MUSIC_FOLDER_ROOT)):
+        abort(403, "Access denied")
+
+    if not os.path.isdir(current_path):
+        abort(404, "Directory not found")
+
+    items = []
+    tracks = []
+    
+    dir_content = sorted(os.listdir(current_path))
+
+    for item_name in dir_content:
+        item_path_on_disk = os.path.join(current_path, item_name)
+        # Путь для навигации (относительно папки music)
+        nav_path = os.path.join(relative_path, item_name).replace('\\', '/')
+        
+        if os.path.isdir(item_path_on_disk):
+            if has_music_recursive(item_path_on_disk):
+                cover_url = None
+                # Ищем обложку для папки
+                for cover_name in ['cover.jpg', 'cover.png']:
+                    if os.path.exists(os.path.join(item_path_on_disk, cover_name)):
+                        # ИСПРАВЛЕНО: Добавлен префикс 'music' для корректного URL
+                        cover_url_path = os.path.join('music', nav_path, cover_name).replace('\\', '/')
+                        cover_url = url_for('static', filename=cover_url_path)
+                        break
+
+                items.append({
+                    "type": "directory",
+                    "name": item_name.replace('_', ' '),
+                    "path": nav_path,
+                    "cover": cover_url
+                })
+        
+        elif item_name.lower().endswith(('.mp3', '.ogg', '.wav', '.m4a')):
+            # ИСПРАВЛЕНО: Добавлен префикс 'music' для корректного URL трека
+            track_url_path = os.path.join('music', nav_path).replace('\\', '/')
+            tracks.append({
+                "name": item_name,
+                "url": url_for('static', filename=track_url_path)
+            })
+
+    if tracks:
+        # Это "альбом", так как в папке есть треки
+        cover_url = url_for('static', filename='assets/default_cover.png')
+        for cover_name in ['cover.jpg', 'cover.png']:
+            if os.path.exists(os.path.join(current_path, cover_name)):
+                cover_url_path = os.path.join('music', relative_path, cover_name).replace('\\', '/')
+                cover_url = url_for('static', filename=cover_url_path)
+                break
+        
+        return jsonify({
+            "type": "album",
+            "title": os.path.basename(relative_path).replace('_', ' ') or "Медиатека",
+            "tracks": tracks,
+            "cover": cover_url
+        })
+    else:
+        # Это "директория", так как в ней только другие папки
+        for item in items:
+            if item['cover'] is None:
+                item['cover'] = url_for('static', filename='assets/default_cover.png')
+
+        return jsonify({
+            "type": "directory",
+            "items": items,
+            "path": relative_path
+        })
 
 
-# Запуск сервера
 if __name__ == '__main__':
-    app.run(debug=True, port=5000, host='0.0.0.0')
+    print(f"CyberAudio Hub запущен. Добро пожаловать в Найт-Сити.")
+    print(f"-> Откройте в браузере: http://localhost:{APP_PORT}")
+    app.run(debug=True, port=APP_PORT, host='0.0.0.0')
