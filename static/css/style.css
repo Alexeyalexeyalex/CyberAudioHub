@@ -14,11 +14,16 @@
     box-sizing: border-box;
 }
 
+html,
+body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
 body {
     font-family: 'Rajdhani', sans-serif;
     background-color: var(--dark-bg);
     color: var(--text-color);
-    overflow-x: hidden;
 }
 
 .background-effects {
@@ -119,6 +124,7 @@ h2::before {
 main {
     padding: 1rem 2rem;
     max-width: 1400px;
+    width: 100%;
     margin: 0 auto;
 }
 
@@ -136,11 +142,13 @@ main {
     font-weight: 500;
     transition: color 0.2s, text-shadow 0.2s;
 }
-
-.breadcrumb-item:hover {
-    color: var(--primary-color);
-    text-shadow: 0 0 5px var(--primary-color);
+@media (hover: hover) and (pointer: fine) {
+    .breadcrumb-item:hover {
+        color: var(--primary-color);
+        text-shadow: 0 0 5px var(--primary-color);
+    }
 }
+
 
 .breadcrumb-separator {
     margin: 0 0.75rem;
@@ -154,7 +162,7 @@ main {
 
 .album-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
     gap: 2rem;
 }
 
@@ -171,27 +179,49 @@ main {
     clip-path: polygon(0 20px, 20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%);
     cursor: pointer;
 }
-
-.album-card:hover {
-    transform: translateY(-10px) scale(1.02);
-    box-shadow: var(--glow-primary);
+@media (hover: hover) and (pointer: fine) {
+    .album-card:hover {
+        transform: translateY(-10px) scale(1.02);
+        box-shadow: var(--glow-primary);
+    }
 }
+
 
 .album-card__image-container {
     position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    background-color: #0a0316;
+}
+
+/* Размытая копия обложки закрывает поля у неквадратных картинок */
+.album-card__image-blur {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: blur(20px) brightness(0.45) saturate(1.4);
+    transform: scale(1.15);
+    pointer-events: none;
 }
 
 .album-card__image {
+    position: relative;
     width: 100%;
-    height: 200px;
-    object-fit: cover;
+    height: 100%;
+    /* contain вместо cover: обложка видна целиком, без обрезки краёв */
+    object-fit: contain;
     display: block;
     transition: filter 0.3s ease;
 }
-
-.album-card:hover .album-card__image {
-    filter: brightness(1.2) saturate(1.2);
+@media (hover: hover) and (pointer: fine) {
+    .album-card:hover .album-card__image {
+        filter: brightness(1.2) saturate(1.2);
+    }
 }
+
 
 .album-card__type-icon {
     position: absolute;
@@ -233,17 +263,20 @@ main {
     padding: 0.5rem 1rem;
     transition: background-color 0.3s, color 0.3s;
 }
-
-.back-button:hover {
-    background-color: var(--secondary-color);
-    color: var(--dark-bg);
-    text-shadow: none;
+@media (hover: hover) and (pointer: fine) {
+    .back-button:hover {
+        background-color: var(--secondary-color);
+        color: var(--dark-bg);
+        text-shadow: none;
+    }
 }
+
 
 .player-container {
     display: grid;
-    grid-template-columns: 300px 1fr;
+    grid-template-columns: 300px minmax(0, 1fr);
     gap: 2rem;
+    max-width: 100%;
     background: var(--card-bg);
     border: 1px solid var(--secondary-color);
     padding: 2rem;
@@ -251,21 +284,46 @@ main {
     clip-path: polygon(0 20px, 20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%);
 }
 
-.player-album-art {
+.player-album-art-container {
+    position: relative;
     width: 100%;
-    height: auto;
-    aspect-ratio: 1/1;
-    object-fit: cover;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
     border: 1px solid var(--primary-color);
+    background-color: #0a0316;
+    min-width: 0;
+}
+
+.player-album-art-blur {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: blur(24px) brightness(0.45) saturate(1.4);
+    transform: scale(1.15);
+    pointer-events: none;
+}
+
+.player-album-art {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    /* contain: обложка книги/альбома не обрезается */
+    object-fit: contain;
+    display: block;
 }
 
 .player-details {
     display: flex;
     flex-direction: column;
+    /* без min-width: 0 длинное название распирает грид-колонку за край экрана */
+    min-width: 0;
 }
 
 .player-details h3 {
-    font-size: 2.5rem;
+    font-size: clamp(1.5rem, 5vw, 2.5rem);
+    overflow-wrap: anywhere;
     color: var(--primary-color);
     text-shadow: var(--glow-primary);
     margin: 0 0 0.5rem;
@@ -273,6 +331,7 @@ main {
 
 #current-track-title {
     font-size: 1.2rem;
+    overflow-wrap: anywhere;
     opacity: 0.9;
     min-height: 1.5em;
     margin-bottom: 1rem;
@@ -305,10 +364,12 @@ main {
     display: flex;
     justify-content: center;
     align-items: center;
+    flex-wrap: wrap;
     gap: 1rem;
 }
 
 .control-btn {
+    flex: 0 0 auto;
     background: transparent;
     border: 1px solid var(--primary-color);
     color: var(--primary-color);
@@ -322,11 +383,12 @@ main {
     justify-content: center;
     align-items: center;
 }
-
-.control-btn:hover {
-    background-color: rgba(0, 242, 255, 0.1);
-    text-shadow: var(--glow-primary);
+@media (hover: hover) and (pointer: fine) {
+    .control-btn:hover {
+        background-color: rgba(0, 242, 255, 0.1);
+    }
 }
+
 
 .control-btn.seek-btn {
     font-size: 1.2rem;
@@ -339,11 +401,12 @@ main {
     border-color: var(--secondary-color);
     color: var(--secondary-color);
 }
-
-.play-btn:hover {
-    background-color: rgba(255, 0, 255, 0.1);
-    text-shadow: var(--glow-secondary-soft);
+@media (hover: hover) and (pointer: fine) {
+    .play-btn:hover {
+        background-color: rgba(255, 0, 255, 0.1);
+    }
 }
+
 
 .shuffle-btn.active {
     background-color: var(--primary-color);
@@ -376,22 +439,34 @@ main {
 .track-item {
     padding: 0.75rem 0.5rem;
     cursor: pointer;
+    overflow-wrap: anywhere;
     border-bottom: 1px solid rgba(0, 242, 255, 0.1);
     transition: background-color 0.2s;
     display: flex;
     align-items: center;
 }
-
-.track-item:hover {
-    background-color: rgba(0, 242, 255, 0.1);
+@media (hover: hover) and (pointer: fine) {
+    .track-item:hover {
+        background-color: rgba(0, 242, 255, 0.1);
+    }
 }
+
 
 .track-item.playing {
     color: var(--primary-color);
     font-weight: 700;
 }
 
+.track-item .track-name {
+    min-width: 0;
+}
+
+.track-item.current {
+    background-color: rgba(255, 0, 255, 0.08);
+}
+
 .track-item .track-number {
+    flex: 0 0 auto;
     margin-right: 1rem;
     color: var(--secondary-color);
     font-weight: 500;
@@ -411,10 +486,10 @@ main {
 
 @media (max-width: 900px) {
     .player-container {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
 
-    .player-album-art {
+    .player-album-art-container {
         max-width: 300px;
         margin: 0 auto;
     }
@@ -434,23 +509,69 @@ main {
     }
 
     .player-page {
+        padding: 1rem 0.75rem;
+    }
+
+    /* Главная причина «плеер вылезает за экран»: внутренний padding в 2rem
+       оставался и на мобильных, и ряд из 6 кнопок переставал помещаться */
+    .player-container {
         padding: 1rem;
+        gap: 1.25rem;
+    }
+
+    .player-details h3 {
+        text-align: center;
     }
 
     .player-controls {
-        gap: 0.5rem;
+        gap: 0.4rem;
     }
 
     .control-btn {
-        width: 45px;
-        height: 45px;
-        font-size: 1.2rem;
+        width: 44px;
+        height: 44px;
+        font-size: 1.1rem;
     }
 
     .play-btn {
-        width: 60px;
-        height: 60px;
-        font-size: 1.8rem;
+        width: 56px;
+        height: 56px;
+        font-size: 1.6rem;
+    }
+
+    .back-button {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Самые узкие телефоны (320-380px): ряд из 6 кнопок должен влезать без переноса */
+@media (max-width: 380px) {
+    .player-container {
+        padding: 0.75rem;
+    }
+
+    .player-controls {
+        gap: 0.25rem;
+    }
+
+    .control-btn {
+        width: 38px;
+        height: 38px;
+        font-size: 0.95rem;
+    }
+
+    .control-btn.seek-btn {
+        font-size: 0.85rem;
+    }
+
+    .play-btn {
+        width: 48px;
+        height: 48px;
+        font-size: 1.3rem;
+    }
+
+    .track-list {
+        max-height: 200px;
     }
 }
 
@@ -475,4 +596,680 @@ main {
     to {
         transform: rotate(360deg);
     }
+}
+
+/* ==========================================================================
+   ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ: чип в правом верхнем углу, панель и модалка входа
+   ========================================================================== */
+
+.user-area {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 50;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.user-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: 60vw;
+    padding: 0.55rem 1rem;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    /* Никнейм показываем как его ввёл пользователь, без принудительного капса */
+    color: var(--primary-color);
+    background: rgba(23, 12, 46, 0.85);
+    border: 1px solid var(--primary-color);
+    backdrop-filter: blur(6px);
+    cursor: pointer;
+    transition: background-color 0.25s, box-shadow 0.25s, color 0.25s;
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+@media (hover: hover) and (pointer: fine) {
+    .user-chip:hover {
+        box-shadow: 0 0 10px var(--primary-color);
+    }
+}
+
+
+.user-chip span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-chip__caret {
+    font-size: 0.7rem;
+    opacity: 0.7;
+}
+
+.user-chip--guest {
+    color: var(--secondary-color);
+    border-color: var(--secondary-color);
+    text-transform: uppercase;
+}
+@media (hover: hover) and (pointer: fine) {
+    .user-chip--guest:hover {
+        box-shadow: var(--glow-secondary-soft);
+    }
+}
+
+
+.user-panel {
+    position: absolute;
+    top: calc(100% + 0.6rem);
+    right: 0;
+    width: min(360px, calc(100vw - 2rem));
+    max-height: min(75vh, 640px);
+    display: flex;
+    flex-direction: column;
+    background: rgba(13, 4, 26, 0.97);
+    border: 1px solid var(--primary-color);
+    box-shadow: 0 0 25px rgba(0, 242, 255, 0.25);
+    backdrop-filter: blur(10px);
+    animation: panel-in 0.18s ease-out;
+}
+
+@keyframes panel-in {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.user-panel__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 1rem;
+    border-bottom: 1px solid rgba(0, 242, 255, 0.25);
+}
+
+.user-panel__nick {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    overflow-wrap: anywhere;
+}
+
+.user-panel__login {
+    font-size: 0.9rem;
+    opacity: 0.65;
+    overflow-wrap: anywhere;
+}
+
+.user-panel__close,
+.auth-modal__close {
+    background: transparent;
+    border: none;
+    color: var(--text-color);
+    font-size: 1.1rem;
+    cursor: pointer;
+    opacity: 0.6;
+    padding: 0.25rem;
+    transition: opacity 0.2s, color 0.2s;
+}
+@media (hover: hover) and (pointer: fine) {
+    .user-panel__close:hover,
+    .auth-modal__close:hover {
+        opacity: 1;
+        color: var(--secondary-color);
+    }
+}
+
+
+.user-panel__body {
+    padding: 0.5rem 1rem 1rem;
+    overflow-y: auto;
+    flex: 1 1 auto;
+}
+
+.user-panel__section {
+    padding: 0.9rem 0;
+    border-bottom: 1px dashed rgba(0, 242, 255, 0.15);
+}
+
+.user-panel__section:last-child {
+    border-bottom: none;
+}
+
+.user-panel__section h4 {
+    margin-bottom: 0.6rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--secondary-color);
+}
+
+.user-panel input,
+.auth-form input {
+    width: 100%;
+    padding: 0.55rem 0.7rem;
+    margin-bottom: 0.5rem;
+    font-family: inherit;
+    font-size: 1rem;
+    color: var(--text-color);
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(0, 242, 255, 0.35);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.user-panel input:focus,
+.auth-form input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 8px rgba(0, 242, 255, 0.4);
+}
+
+.field-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+}
+
+.field-row input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.field-hint {
+    font-size: 0.8rem;
+    opacity: 0.55;
+}
+
+.mini-btn,
+.panel-btn {
+    font-family: inherit;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--primary-color);
+    background: transparent;
+    border: 1px solid var(--primary-color);
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.mini-btn {
+    flex: 0 0 auto;
+    padding: 0.55rem 0.9rem;
+}
+
+.panel-btn {
+    width: 100%;
+    padding: 0.55rem 0.9rem;
+    text-transform: uppercase;
+}
+@media (hover: hover) and (pointer: fine) {
+    .mini-btn:hover,
+    .panel-btn:hover {
+        background-color: var(--primary-color);
+        color: var(--dark-bg);
+    }
+}
+
+
+.mini-btn:disabled,
+.panel-btn:disabled,
+.auth-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.panel-btn--danger {
+    color: var(--secondary-color);
+    border-color: var(--secondary-color);
+}
+@media (hover: hover) and (pointer: fine) {
+    .panel-btn--danger:hover {
+        background-color: var(--secondary-color);
+        color: var(--dark-bg);
+    }
+}
+
+
+.user-panel__footer {
+    padding: 0.9rem 1rem;
+    border-top: 1px solid rgba(0, 242, 255, 0.25);
+}
+
+.panel-message {
+    min-height: 1.2em;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--primary-color);
+}
+
+.panel-message.is-error {
+    color: var(--secondary-color);
+}
+
+/* Список книг в панели */
+.progress-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+.progress-list__empty {
+    font-size: 0.9rem;
+    opacity: 0.55;
+}
+
+.progress-list__row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.progress-list__link {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: var(--text-color);
+    text-decoration: none;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+    transition: color 0.2s;
+}
+@media (hover: hover) and (pointer: fine) {
+    .progress-list__link:hover {
+        color: var(--primary-color);
+    }
+}
+
+
+.progress-list__reset {
+    flex: 0 0 auto;
+    background: transparent;
+    border: 1px solid rgba(255, 0, 255, 0.4);
+    color: var(--secondary-color);
+    width: 28px;
+    height: 28px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+@media (hover: hover) and (pointer: fine) {
+    .progress-list__reset:hover {
+        background-color: var(--secondary-color);
+        color: var(--dark-bg);
+    }
+}
+
+
+.progress-list__bar {
+    height: 4px;
+    margin: 0.4rem 0 0.25rem;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.progress-list__fill {
+    height: 100%;
+    background: var(--primary-color);
+    box-shadow: 0 0 6px var(--primary-color);
+}
+
+.progress-list__meta {
+    font-size: 0.82rem;
+    opacity: 0.7;
+}
+
+/* Модалка входа / регистрации */
+.auth-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(5, 1, 12, 0.85);
+    backdrop-filter: blur(4px);
+}
+
+.auth-overlay[hidden],
+.user-panel[hidden],
+.user-chip[hidden] {
+    display: none;
+}
+
+.auth-modal {
+    position: relative;
+    width: min(420px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 2rem;
+    background: var(--dark-bg);
+    border: 1px solid var(--secondary-color);
+    box-shadow: 0 0 30px rgba(255, 0, 255, 0.3);
+    clip-path: polygon(0 20px, 20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%);
+}
+
+.auth-modal__close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    font-size: 1.3rem;
+    /* Единственный способ закрыть окно — делаем его заметнее */
+    opacity: 0.9;
+}
+
+/* Клик по затемнению вокруг окна намеренно ничего не закрывает:
+   вместо этого коротко подсвечиваем рамку и крестик */
+.auth-modal.is-nudged {
+    animation: auth-nudge 0.45s ease-out;
+}
+
+.auth-modal.is-nudged .auth-modal__close {
+    animation: auth-close-pulse 0.45s ease-out;
+}
+
+@keyframes auth-nudge {
+    0% {
+        box-shadow: 0 0 30px rgba(255, 0, 255, 0.3);
+    }
+
+    35% {
+        box-shadow: 0 0 45px rgba(255, 0, 255, 0.85);
+    }
+
+    100% {
+        box-shadow: 0 0 30px rgba(255, 0, 255, 0.3);
+    }
+}
+
+@keyframes auth-close-pulse {
+    0%, 100% {
+        transform: scale(1);
+        color: var(--text-color);
+    }
+
+    40% {
+        transform: scale(1.35);
+        color: var(--secondary-color);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .auth-modal.is-nudged,
+    .auth-modal.is-nudged .auth-modal__close {
+        animation: none;
+    }
+}
+
+.auth-modal h2 {
+    font-size: 1.4rem;
+    padding-left: 20px;
+    margin-bottom: 1.2rem;
+}
+
+.auth-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.2rem;
+}
+
+.auth-tab {
+    flex: 1 1 0;
+    padding: 0.5rem;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-color);
+    background: transparent;
+    border: 1px solid rgba(0, 242, 255, 0.3);
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s, background-color 0.2s;
+}
+
+.auth-tab.is-active {
+    color: var(--dark-bg);
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.auth-form label {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--secondary-color);
+}
+
+.auth-hint {
+    font-size: 0.8rem;
+    opacity: 0.55;
+    margin-bottom: 0.5rem;
+}
+
+.auth-error {
+    min-height: 1.2em;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--secondary-color);
+}
+
+.auth-submit {
+    width: 100%;
+    padding: 0.75rem;
+    font-family: inherit;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--dark-bg);
+    background: var(--secondary-color);
+    border: none;
+    cursor: pointer;
+    transition: filter 0.2s;
+}
+@media (hover: hover) and (pointer: fine) {
+    .auth-submit:hover {
+        filter: brightness(1.15);
+    }
+}
+
+
+/* Плашка «сколько осталось» на карточке книги */
+.album-card--in-progress {
+    border-color: var(--secondary-color);
+}
+
+.album-card__progress {
+    margin-top: 0.6rem;
+}
+
+.album-card__remaining {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--secondary-color);
+}
+
+.album-card__progress.is-finished .album-card__remaining {
+    color: var(--primary-color);
+}
+
+.album-card__progress-bar {
+    height: 4px;
+    margin-top: 0.4rem;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.album-card__progress-fill {
+    height: 100%;
+    background: var(--secondary-color);
+    box-shadow: var(--glow-secondary-soft);
+    transition: width 0.3s ease;
+}
+
+.album-card__progress.is-finished .album-card__progress-fill {
+    background: var(--primary-color);
+    box-shadow: 0 0 6px var(--primary-color);
+}
+
+/* Строка «до конца книги» в плеере */
+.book-remaining {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+    color: var(--secondary-color);
+}
+
+.book-remaining[hidden] {
+    display: none;
+}
+
+/* Шапка не должна залезать под чип профиля */
+.main-header {
+    padding-top: 4.5rem;
+}
+
+.player-page {
+    padding-top: 4.5rem;
+}
+
+@media (max-width: 600px) {
+    .user-area {
+        top: 0.6rem;
+        right: 0.6rem;
+    }
+
+    .user-chip {
+        padding: 0.45rem 0.7rem;
+        font-size: 0.85rem;
+    }
+
+    .user-panel {
+        width: calc(100vw - 1.2rem);
+        max-height: 80vh;
+    }
+
+    .auth-modal {
+        padding: 1.5rem;
+    }
+
+    .main-header {
+        padding-top: 4rem;
+    }
+
+    .player-page {
+        padding-top: 3.5rem;
+    }
+}
+
+/* ==========================================================================
+   СОСТОЯНИЯ КНОПОК
+
+   Раньше подсветка держалась на одном лишь :hover. На сенсорных экранах
+   он «залипает» после тапа (и снимается только тапом в другом месте),
+   а после клика мышью на кнопке остаётся фокус — свечение выглядело
+   застрявшим. Теперь:
+     :active        — свечение ровно на время нажатия;
+     :hover         — только там, где есть настоящий курсор (см. media выше);
+     :focus-visible — рамка только при навигации с клавиатуры.
+   ========================================================================== */
+
+.control-btn,
+.play-btn,
+.mini-btn,
+.panel-btn,
+.auth-tab,
+.auth-submit,
+.user-chip,
+.progress-list__reset,
+.user-panel__close,
+.auth-modal__close,
+.album-card,
+.track-item,
+.back-button,
+.breadcrumb-item {
+    /* убирает серую вспышку по тапу в мобильных браузерах */
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Свечение появляется в момент нажатия и гаснет при отпускании */
+.control-btn:active {
+    background-color: rgba(0, 242, 255, 0.18);
+    text-shadow: var(--glow-primary);
+    transform: scale(0.94);
+}
+
+.play-btn:active {
+    background-color: rgba(255, 0, 255, 0.18);
+    text-shadow: var(--glow-secondary-soft);
+}
+
+.control-btn {
+    /* трансформация в общем переходе, чтобы нажатие было плавным */
+    transition: background-color 0.15s, text-shadow 0.15s, transform 0.08s;
+}
+
+.mini-btn:active,
+.panel-btn:active,
+.auth-tab:active,
+.auth-submit:active,
+.progress-list__reset:active,
+.user-chip:active {
+    filter: brightness(1.2);
+}
+
+.track-item:active {
+    background-color: rgba(0, 242, 255, 0.12);
+}
+
+/* Клик мышью не должен оставлять рамку фокуса… */
+.control-btn:focus,
+.mini-btn:focus,
+.panel-btn:focus,
+.auth-tab:focus,
+.auth-submit:focus,
+.user-chip:focus,
+.progress-list__reset:focus,
+.user-panel__close:focus,
+.auth-modal__close:focus,
+.album-card:focus,
+.back-button:focus {
+    outline: none;
+}
+
+/* …но при работе с клавиатуры фокус обязан быть виден */
+.control-btn:focus-visible,
+.mini-btn:focus-visible,
+.panel-btn:focus-visible,
+.auth-tab:focus-visible,
+.auth-submit:focus-visible,
+.user-chip:focus-visible,
+.progress-list__reset:focus-visible,
+.user-panel__close:focus-visible,
+.auth-modal__close:focus-visible,
+.album-card:focus-visible,
+.back-button:focus-visible,
+.breadcrumb-item:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 3px;
+}
+
+/* Кнопка «перемешать» во включённом состоянии подсвечена намеренно —
+   это индикатор режима, а не остаточное свечение от нажатия */
+.shuffle-btn.active:active {
+    background-color: var(--primary-color);
+    color: var(--dark-bg);
 }

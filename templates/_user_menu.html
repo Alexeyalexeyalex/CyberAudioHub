@@ -1,0 +1,84 @@
+<div class="user-area" id="user-area">
+    <button type="button" class="user-chip" id="user-chip" hidden aria-haspopup="dialog" aria-expanded="false">
+        <i class="fas fa-user-astronaut"></i>
+        <span id="user-chip-name">…</span>
+        <i class="fas fa-chevron-down user-chip__caret"></i>
+    </button>
+
+    <button type="button" class="user-chip user-chip--guest" id="guest-chip" hidden>
+        <i class="fas fa-right-to-bracket"></i>
+        <span>ВОЙТИ</span>
+    </button>
+
+    <div class="user-panel" id="user-panel" role="dialog" aria-label="Профиль" hidden>
+        <div class="user-panel__header">
+            <div>
+                <div class="user-panel__nick" id="panel-nickname">—</div>
+                <div class="user-panel__login" id="panel-login">@—</div>
+            </div>
+            <button type="button" class="user-panel__close" id="panel-close" aria-label="Закрыть">
+                <i class="fas fa-xmark"></i>
+            </button>
+        </div>
+
+        <div class="user-panel__body">
+            <section class="user-panel__section">
+                <h4>Никнейм</h4>
+                <div class="field-row">
+                    <input type="text" id="nickname-input" maxlength="32" placeholder="Как вас показывать на сайте"
+                        autocomplete="nickname">
+                    <button type="button" class="mini-btn" id="nickname-save">OK</button>
+                </div>
+                <p class="field-hint">Пустое поле вернёт никнейм к логину.</p>
+            </section>
+
+            <section class="user-panel__section">
+                <h4>Смена пароля</h4>
+                <input type="password" id="current-password" placeholder="Текущий пароль" autocomplete="current-password">
+                <input type="password" id="new-password" placeholder="Новый пароль (от 6 символов)" autocomplete="new-password">
+                <button type="button" class="panel-btn" id="password-save">Обновить пароль</button>
+            </section>
+
+            <section class="user-panel__section">
+                <h4>Мои книги</h4>
+                <ul class="progress-list" id="progress-list">
+                    <li class="progress-list__empty">Пока ничего не прослушано.</li>
+                </ul>
+            </section>
+        </div>
+
+        <div class="user-panel__footer">
+            <p class="panel-message" id="panel-message" role="status"></p>
+            <button type="button" class="panel-btn panel-btn--danger" id="logout-btn">
+                <i class="fas fa-power-off"></i> Выйти
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="auth-overlay" id="auth-overlay" hidden>
+    <div class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+        <button type="button" class="auth-modal__close" id="auth-close" aria-label="Закрыть">
+            <i class="fas fa-xmark"></i>
+        </button>
+        <h2 id="auth-title">ВХОД В СИСТЕМУ</h2>
+
+        <div class="auth-tabs">
+            <button type="button" class="auth-tab is-active" id="tab-login" data-mode="login">Вход</button>
+            <button type="button" class="auth-tab" id="tab-register" data-mode="register">Регистрация</button>
+        </div>
+
+        <form class="auth-form" id="auth-form" novalidate>
+            <label for="auth-login">Логин</label>
+            <input type="text" id="auth-login" name="login" autocomplete="username" maxlength="32" required>
+
+            <label for="auth-password">Пароль</label>
+            <input type="password" id="auth-password" name="password" autocomplete="current-password" required>
+
+            <p class="auth-hint" id="auth-hint">Логин: 3–32 символа латиницей, цифры, точка, дефис, подчёркивание.</p>
+            <p class="auth-error" id="auth-error" role="alert"></p>
+
+            <button type="submit" class="auth-submit" id="auth-submit">ВОЙТИ</button>
+        </form>
+    </div>
+</div>

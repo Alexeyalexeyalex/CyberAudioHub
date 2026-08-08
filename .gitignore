@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# Локальная база с пользователями и прогрессом
+data/
+
+# Медиатека пользователя
+static/music/*
+!static/music/.gitkeep

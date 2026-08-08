@@ -16,20 +16,22 @@
 <body>
     <div class="background-effects"></div>
 
+    {% include '_user_menu.html' %}
+
     <main class="player-page">
-        <a href="/" class="back-button">
-            < НАЗАД К МЕДИАТЕКЕ</a>
+        <a href="/" class="back-button" id="back-button">&lt; НАЗАД К МЕДИАТЕКЕ</a>
 
-                <div class="player-container" id="player-container">
-                    <div class="loading-state">
-                        <h2>ЗАГРУЗКА ДАННЫХ...</h2>
-                        <div class="loader"></div>
-                    </div>
-                </div>
+        <div class="player-container" id="player-container">
+            <div class="loading-state">
+                <h2>ЗАГРУЗКА ДАННЫХ...</h2>
+                <div class="loader"></div>
+            </div>
+        </div>
 
-                <audio id="audio-player"></audio>
+        <audio id="audio-player" preload="metadata"></audio>
     </main>
 
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
     <script src="{{ url_for('static', filename='js/player.js') }}"></script>
 </body>
 

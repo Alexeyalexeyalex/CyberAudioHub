@@ -17,9 +17,11 @@
 
     <div class="background-effects"></div>
 
+    {% include '_user_menu.html' %}
+
     <header class="main-header">
         <h1>CYBER_AUDIO_HUB</h1>
-        <p class="subtitle">👾Ваша коллекция звуков из будущего</p>
+        <p class="subtitle">👾Ваша коллекция из будущего</p>
     </header>
 
     <main>
@@ -39,6 +41,7 @@
         <p>© 2077 CyberAudio Corp.</p>
     </footer>
 
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 
