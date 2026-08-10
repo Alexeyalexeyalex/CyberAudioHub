@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
     login         TEXT    NOT NULL UNIQUE COLLATE NOCASE,
     nickname      TEXT    NOT NULL,
     password_hash TEXT    NOT NULL,
+    is_admin      INTEGER NOT NULL DEFAULT 0,
     created_at    TEXT    NOT NULL
 );
 
@@ -73,14 +74,25 @@ def close_db(exc=None):
 
 
 def init_db(db_path):
-    """Создаёт файл БД и таблицы, если их ещё нет."""
+    """Создаёт файл БД и таблицы, если их ещё нет, и доводит схему до актуальной."""
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
     conn = sqlite3.connect(db_path)
     try:
         conn.executescript(SCHEMA)
+        migrate(conn)
         conn.commit()
     finally:
         conn.close()
+
+
+def migrate(conn):
+    """
+    Догоняет схему на базах, созданных прошлыми версиями:
+    CREATE TABLE IF NOT EXISTS не добавляет новые колонки в существующую таблицу.
+    """
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(users)")}
+    if 'is_admin' not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
 
 
 def get_or_create_secret_key(db_path):
@@ -103,10 +115,10 @@ def get_or_create_secret_key(db_path):
 
 # --- Пользователи ---
 
-def create_user(conn, login, nickname, password_hash):
+def create_user(conn, login, nickname, password_hash, is_admin=0):
     cur = conn.execute(
-        "INSERT INTO users (login, nickname, password_hash, created_at) VALUES (?, ?, ?, ?)",
-        (login, nickname, password_hash, now_iso())
+        "INSERT INTO users (login, nickname, password_hash, is_admin, created_at) VALUES (?, ?, ?, ?, ?)",
+        (login, nickname, password_hash, 1 if is_admin else 0, now_iso())
     )
     conn.commit()
     return cur.lastrowid
@@ -121,12 +133,55 @@ def find_user_by_id(conn, user_id):
 
 
 def update_user(conn, user_id, **fields):
-    allowed = {'nickname', 'password_hash'}
+    allowed = {'login', 'nickname', 'password_hash', 'is_admin'}
     fields = {k: v for k, v in fields.items() if k in allowed}
     if not fields:
         return
     assignments = ', '.join(f'{k} = ?' for k in fields)
     conn.execute(f"UPDATE users SET {assignments} WHERE id = ?", (*fields.values(), user_id))
+    conn.commit()
+
+
+def delete_user(conn, user_id):
+    conn.execute("DELETE FROM progress WHERE user_id = ?", (user_id,))
+    conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+
+
+def list_users(conn):
+    """Все учётные записи вместе с числом начатых книг."""
+    return conn.execute(
+        """
+        SELECT u.*, (SELECT COUNT(*) FROM progress p WHERE p.user_id = u.id) AS books
+        FROM users u
+        ORDER BY u.is_admin DESC, u.login COLLATE NOCASE
+        """
+    ).fetchall()
+
+
+def count_admins(conn):
+    return conn.execute("SELECT COUNT(*) FROM users WHERE is_admin = 1").fetchone()[0]
+
+
+def list_all_progress(conn):
+    """Прогресс всех пользователей — для админской страницы."""
+    return conn.execute(
+        """
+        SELECT p.*, u.login, u.nickname
+        FROM progress p JOIN users u ON u.id = p.user_id
+        ORDER BY p.updated_at DESC
+        """
+    ).fetchall()
+
+
+def list_albums(conn):
+    return conn.execute(
+        "SELECT path, track_count, total_duration, updated_at FROM albums ORDER BY path"
+    ).fetchall()
+
+
+def delete_album(conn, path):
+    conn.execute("DELETE FROM albums WHERE path = ?", (path,))
     conn.commit()
 
 

@@ -178,6 +178,7 @@
             els.panelNickname.textContent = user.nickname;
             els.panelLogin.textContent = '@' + user.login;
             els.nicknameInput.value = user.nickname;
+            if (els.adminLink) els.adminLink.hidden = !user.is_admin;
         } else {
             els.userChip.hidden = true;
             els.guestChip.hidden = false;
@@ -319,6 +320,10 @@
             const data = await json('POST', url, { login, password });
             setUser(data.user);
             closeAuth();
+            // Администратора сразу отправляем в его панель
+            if (data.user && data.user.is_admin && window.location.pathname !== '/admin') {
+                window.location.href = '/admin';
+            }
         } catch (e) {
             els.authError.textContent = e.message;
         } finally {
@@ -334,6 +339,7 @@
             panel: $('user-panel'), panelClose: $('panel-close'), panelNickname: $('panel-nickname'),
             panelLogin: $('panel-login'), panelMessage: $('panel-message'),
             nicknameInput: $('nickname-input'), nicknameSave: $('nickname-save'),
+            adminLink: $('admin-link'),
             currentPassword: $('current-password'), newPassword: $('new-password'),
             passwordSave: $('password-save'), progressList: $('progress-list'), logout: $('logout-btn'),
             authOverlay: $('auth-overlay'),

@@ -1,6 +1,7 @@
 # app.py
 import os
 import re
+import sqlite3
 import functools
 
 from flask import (Flask, jsonify, render_template, url_for, request, abort,
@@ -16,6 +17,11 @@ COVER_NAMES = ('cover.jpg', 'cover.jpeg', 'cover.png', 'cover.webp',
                'folder.jpg', 'folder.jpeg', 'folder.png', 'front.jpg')
 
 LOGIN_RE = re.compile(r'^[A-Za-z0-9_.-]{3,32}$')
+
+# Учётная запись администратора создаётся при первом запуске.
+# Логин и пароль можно переопределить переменными окружения — см. README.
+ADMIN_LOGIN = os.environ.get('CYBERAUDIO_ADMIN_LOGIN', 'admin')
+ADMIN_PASSWORD = os.environ.get('CYBERAUDIO_ADMIN_PASSWORD', '123Alex12')
 MIN_PASSWORD_LENGTH = 6
 MAX_NICKNAME_LENGTH = 32
 
@@ -32,6 +38,31 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=60 * 60 * 24 * 30,  # 30 дней
 )
 app.teardown_appcontext(database.close_db)
+
+
+def ensure_admin_account():
+    """
+    Создаёт администратора при первом запуске. Если учётка с таким логином
+    уже есть, пароль не трогаем — просто выдаём ей права, чтобы случайно
+    не перезаписать чей-то существующий аккаунт.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        existing = database.find_user_by_login(conn, ADMIN_LOGIN)
+        if existing is None:
+            database.create_user(conn, ADMIN_LOGIN, ADMIN_LOGIN,
+                                 generate_password_hash(ADMIN_PASSWORD), is_admin=1)
+            return 'created'
+        if not existing['is_admin']:
+            database.update_user(conn, existing['id'], is_admin=1)
+            return 'promoted'
+        return 'exists'
+    finally:
+        conn.close()
+
+
+ADMIN_STATE = ensure_admin_account()
 
 
 def get_db():
@@ -135,8 +166,24 @@ def login_required(view):
     return wrapped
 
 
+def admin_required(view):
+    @functools.wraps(view)
+    def wrapped(*args, **kwargs):
+        user = current_user()
+        if user is None:
+            return jsonify({"error": "Требуется авторизация"}), 401
+        if not user['is_admin']:
+            return jsonify({"error": "Недостаточно прав"}), 403
+        return view(*args, **kwargs)
+    return wrapped
+
+
 def user_public(user):
-    return {"login": user['login'], "nickname": user['nickname']}
+    return {
+        "login": user['login'],
+        "nickname": user['nickname'],
+        "is_admin": bool(user['is_admin']),
+    }
 
 
 def sign_in(user_id):
@@ -190,6 +237,15 @@ def index():
 @app.route('/player')
 def player():
     return render_template('player.html')
+
+
+@app.route('/admin')
+def admin_page():
+    user = current_user()
+    if user is None or not user['is_admin']:
+        # Обычному пользователю страницы просто не существует
+        abort(404)
+    return render_template('admin.html', admin_login=ADMIN_LOGIN)
 
 
 # --- API: авторизация ---
@@ -354,6 +410,178 @@ def api_save_album_durations():
     return jsonify({"ok": True, "total_duration": sum(clean)})
 
 
+
+# --- API: администрирование ---
+
+def admin_user_row(row):
+    return {
+        "id": row['id'],
+        "login": row['login'],
+        "nickname": row['nickname'],
+        "is_admin": bool(row['is_admin']),
+        "created_at": row['created_at'],
+        "books": row['books'] if 'books' in row.keys() else 0,
+        # Пароли хранятся только в виде хеша и в открытом виде недоступны
+        # даже администратору — показываем лишь алгоритм.
+        "password_algo": (row['password_hash'] or '').split('$')[0] or '—',
+    }
+
+
+@app.route('/api/admin/overview')
+@admin_required
+def api_admin_overview():
+    """Всё содержимое базы для админской страницы."""
+    conn = get_db()
+    cache = database.get_all_album_durations(conn)
+
+    progress = []
+    for row in database.list_all_progress(conn):
+        item = progress_payload(row, cache)
+        item.update({"user_id": row['user_id'], "login": row['login'], "nickname": row['nickname']})
+        progress.append(item)
+
+    albums = [{
+        "path": row['path'],
+        "track_count": row['track_count'],
+        "total_duration": row['total_duration'],
+        "updated_at": row['updated_at'],
+        "exists": album_exists(row['path']),
+    } for row in database.list_albums(conn)]
+
+    # Подсказка на странице: пароль администратора всё ещё тот, что лежит в исходниках
+    admin_row = database.find_user_by_login(conn, ADMIN_LOGIN)
+    default_password = bool(admin_row and check_password_hash(admin_row['password_hash'], ADMIN_PASSWORD))
+
+    return jsonify({
+        "users": [admin_user_row(r) for r in database.list_users(conn)],
+        "progress": progress,
+        "albums": albums,
+        "current_user_id": current_user()['id'],
+        "default_password": default_password,
+        "stats": {
+            "users": len(database.list_users(conn)),
+            "progress": len(progress),
+            "albums": len(albums),
+            "admins": database.count_admins(conn),
+        }
+    })
+
+
+@app.route('/api/admin/users', methods=['POST'])
+@admin_required
+def api_admin_create_user():
+    data = request.get_json(silent=True) or {}
+    login = (data.get('login') or '').strip()
+    password = data.get('password') or ''
+    nickname = (data.get('nickname') or '').strip() or login
+
+    if not LOGIN_RE.match(login):
+        return jsonify({"error": "Логин: 3–32 символа, латиница, цифры, точка, дефис или подчёркивание"}), 400
+    if len(password) < MIN_PASSWORD_LENGTH:
+        return jsonify({"error": f"Пароль должен быть не короче {MIN_PASSWORD_LENGTH} символов"}), 400
+    if len(nickname) > MAX_NICKNAME_LENGTH:
+        return jsonify({"error": f"Никнейм не длиннее {MAX_NICKNAME_LENGTH} символов"}), 400
+
+    conn = get_db()
+    if database.find_user_by_login(conn, login):
+        return jsonify({"error": "Такой логин уже занят"}), 409
+
+    user_id = database.create_user(conn, login, nickname, generate_password_hash(password),
+                                   is_admin=1 if data.get('is_admin') else 0)
+    return jsonify({"id": user_id}), 201
+
+
+@app.route('/api/admin/users/<int:user_id>', methods=['PATCH'])
+@admin_required
+def api_admin_update_user(user_id):
+    data = request.get_json(silent=True) or {}
+    conn = get_db()
+    target = database.find_user_by_id(conn, user_id)
+    if target is None:
+        return jsonify({"error": "Пользователь не найден"}), 404
+
+    updates = {}
+
+    if 'login' in data:
+        login = (data.get('login') or '').strip()
+        if not LOGIN_RE.match(login):
+            return jsonify({"error": "Логин: 3–32 символа, латиница, цифры, точка, дефис или подчёркивание"}), 400
+        clash = database.find_user_by_login(conn, login)
+        if clash and clash['id'] != user_id:
+            return jsonify({"error": "Такой логин уже занят"}), 409
+        updates['login'] = login
+
+    if 'nickname' in data:
+        nickname = (data.get('nickname') or '').strip() or updates.get('login', target['login'])
+        if len(nickname) > MAX_NICKNAME_LENGTH:
+            return jsonify({"error": f"Никнейм не длиннее {MAX_NICKNAME_LENGTH} символов"}), 400
+        updates['nickname'] = nickname
+
+    if data.get('new_password'):
+        if len(data['new_password']) < MIN_PASSWORD_LENGTH:
+            return jsonify({"error": f"Пароль должен быть не короче {MIN_PASSWORD_LENGTH} символов"}), 400
+        updates['password_hash'] = generate_password_hash(data['new_password'])
+
+    if 'is_admin' in data:
+        is_admin = 1 if data.get('is_admin') else 0
+        # Нельзя снять с себя права и нельзя убрать последнего администратора —
+        # иначе в панель больше никто не войдёт
+        if not is_admin and target['is_admin']:
+            if target['id'] == current_user()['id']:
+                return jsonify({"error": "Нельзя снять права администратора с самого себя"}), 400
+            if database.count_admins(conn) <= 1:
+                return jsonify({"error": "Это последний администратор — права снять нельзя"}), 400
+        updates['is_admin'] = is_admin
+
+    if not updates:
+        return jsonify({"error": "Нечего обновлять"}), 400
+
+    database.update_user(conn, user_id, **updates)
+    return jsonify({"ok": True})
+
+
+@app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
+@admin_required
+def api_admin_delete_user(user_id):
+    conn = get_db()
+    target = database.find_user_by_id(conn, user_id)
+    if target is None:
+        return jsonify({"error": "Пользователь не найден"}), 404
+    if target['id'] == current_user()['id']:
+        return jsonify({"error": "Нельзя удалить учётную запись, под которой вы вошли"}), 400
+    if target['is_admin'] and database.count_admins(conn) <= 1:
+        return jsonify({"error": "Это последний администратор — удалить нельзя"}), 400
+
+    database.delete_user(conn, user_id)
+    return jsonify({"ok": True})
+
+
+@app.route('/api/admin/progress', methods=['DELETE'])
+@admin_required
+def api_admin_delete_progress():
+    data = request.get_json(silent=True) or {}
+    try:
+        user_id = int(data.get('user_id'))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Не указан пользователь"}), 400
+    path = (data.get('path') or '').strip('/')
+    if not path:
+        return jsonify({"error": "Не указан путь"}), 400
+    database.delete_progress(get_db(), user_id, path)
+    return jsonify({"ok": True})
+
+
+@app.route('/api/admin/albums', methods=['DELETE'])
+@admin_required
+def api_admin_delete_album():
+    data = request.get_json(silent=True) or {}
+    path = (data.get('path') or '').strip('/')
+    if not path:
+        return jsonify({"error": "Не указан путь"}), 400
+    database.delete_album(get_db(), path)
+    return jsonify({"ok": True})
+
+
 # --- API: каталог ---
 @app.route('/api/browse')
 def api_browse():
@@ -423,5 +651,11 @@ def api_browse():
 if __name__ == '__main__':
     print("CyberAudio Hub запущен. Добро пожаловать в Найт-Сити.")
     print(f"-> База данных: {DB_PATH}")
+    if ADMIN_STATE == 'created':
+        print(f"-> Создан администратор: логин '{ADMIN_LOGIN}', пароль из настроек.")
+        print("   ВНИМАНИЕ: пароль по умолчанию известен всем, у кого есть исходники.")
+        print("   Смените его в профиле или задайте CYBERAUDIO_ADMIN_PASSWORD.")
+    elif ADMIN_STATE == 'promoted':
+        print(f"-> Учётной записи '{ADMIN_LOGIN}' выданы права администратора.")
     print(f"-> Откройте в браузере: http://localhost:{APP_PORT}")
     app.run(debug=True, port=APP_PORT, host='0.0.0.0')

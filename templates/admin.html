@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель — CyberAudio Hub</title>
+    <link rel="icon" href="{{ url_for('static', filename='assets/favicon.png') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+
+    <div class="background-effects"></div>
+
+    {% include '_user_menu.html' %}
+
+    <main class="admin-page">
+        <a href="/" class="back-button">&lt; НАЗАД К МЕДИАТЕКЕ</a>
+
+        <header class="admin-header">
+            <h1>АДМИН-ПАНЕЛЬ</h1>
+            <p class="subtitle">Содержимое локальной базы данных</p>
+        </header>
+
+        <p class="admin-warning" id="admin-warning" hidden>
+            <i class="fas fa-triangle-exclamation"></i>
+            <span>Администратор <b>{{ admin_login }}</b> использует пароль по умолчанию из исходников.
+                Смените его в окне профиля, если приложение доступно кому-то ещё.</span>
+        </p>
+
+        <div class="admin-stats" id="admin-stats"></div>
+
+        <section class="admin-section">
+            <div class="admin-section__head">
+                <h2>Учётные записи</h2>
+                <button type="button" class="panel-btn admin-add" id="add-user-btn">
+                    <i class="fas fa-user-plus"></i> Добавить
+                </button>
+            </div>
+            <div class="table-scroll">
+                <table class="admin-table" id="users-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Логин</th>
+                            <th>Никнейм</th>
+                            <th>Роль</th>
+                            <th>Пароль</th>
+                            <th>Книг</th>
+                            <th>Создан</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="admin-section">
+            <div class="admin-section__head">
+                <h2>Прогресс прослушивания</h2>
+            </div>
+            <div class="table-scroll">
+                <table class="admin-table" id="progress-table">
+                    <thead>
+                        <tr>
+                            <th>Пользователь</th>
+                            <th>Книга</th>
+                            <th>Глава</th>
+                            <th>Позиция</th>
+                            <th>Осталось</th>
+                            <th>Обновлено</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="admin-section">
+            <div class="admin-section__head">
+                <h2>Кэш длительностей</h2>
+            </div>
+            <div class="table-scroll">
+                <table class="admin-table" id="albums-table">
+                    <thead>
+                        <tr>
+                            <th>Путь</th>
+                            <th>Глав</th>
+                            <th>Длительность</th>
+                            <th>Обновлён</th>
+                            <th>На диске</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <div class="auth-overlay" id="user-form-overlay" hidden>
+        <div class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="user-form-title">
+            <button type="button" class="auth-modal__close" id="user-form-close" aria-label="Закрыть">
+                <i class="fas fa-xmark"></i>
+            </button>
+            <h2 id="user-form-title">НОВЫЙ ПОЛЬЗОВАТЕЛЬ</h2>
+
+            <form class="auth-form" id="user-form" novalidate>
+                <label for="form-login">Логин</label>
+                <input type="text" id="form-login" maxlength="32" autocomplete="off">
+
+                <label for="form-nickname">Никнейм</label>
+                <input type="text" id="form-nickname" maxlength="32" autocomplete="off">
+
+                <label for="form-password">Пароль</label>
+                <input type="password" id="form-password" autocomplete="new-password">
+                <p class="auth-hint" id="form-password-hint">Не короче 6 символов.</p>
+
+                <label class="checkbox-row">
+                    <input type="checkbox" id="form-admin">
+                    <span>Администратор</span>
+                </label>
+
+                <p class="auth-error" id="form-error" role="alert"></p>
+                <button type="submit" class="auth-submit" id="form-submit">СОЗДАТЬ</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+
+</html>
