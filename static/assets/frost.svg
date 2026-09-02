@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="none">
+  <defs>
+    <filter id="ice" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.02" numOctaves="5" seed="11" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="140" xChannelSelector="R" yChannelSelector="G"/>
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+    <radialGradient id="hole" cx="50%" cy="50%" r="52%">
+      <stop offset="0" stop-color="#000" stop-opacity="1"/>
+      <stop offset="0.72" stop-color="#000" stop-opacity="1"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+    <mask id="m">
+      <rect width="1280" height="720" fill="#fff"/>
+      <rect width="1280" height="720" fill="url(#hole)"/>
+    </mask>
+  </defs>
+  <g mask="url(#m)" filter="url(#ice)">
+    <rect width="1280" height="720" fill="#dff1ff"/>
+    <rect width="1280" height="720" fill="#9fd6ff" opacity="0.55"/>
+  </g>
+</svg>

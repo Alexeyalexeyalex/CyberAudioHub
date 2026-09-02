@@ -36,6 +36,155 @@
 
         <section class="admin-section">
             <div class="admin-section__head">
+                <h2>Папки с музыкой</h2>
+                <label class="switch switch--inline" title="Разрешить читателям скачивать книги">
+                    <input type="checkbox" id="downloads-toggle" autocomplete="off">
+                    <span></span>
+                </label>
+                <span class="engine-note">Разрешить скачивание</span>
+                <button type="button" class="panel-btn admin-add" id="root-add">
+                    <i class="fas fa-folder-plus"></i> Добавить папку
+                </button>
+            </div>
+            <p class="worker-hint">
+                Основная папка лежит внутри приложения. Дополнительные можно указать
+                на любом диске — введите полный путь, например
+                <code>D:\Аудиокниги</code>. Название станет разделом на главной.
+            </p>
+            <div class="table-scroll">
+                <table class="admin-table" id="roots-table">
+                    <thead>
+                        <tr>
+                            <th>Название</th>
+                            <th>Путь на диске</th>
+                            <th>Состояние</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="admin-section">
+            <div class="admin-section__head">
+                <h2>Праздничное оформление</h2>
+                <span class="engine-note">Можно включить несколько сразу</span>
+            </div>
+            <div class="theme-list" id="theme-list"></div>
+            <div class="theme-settings">
+                <label>
+                    Летящих элементов
+                    <select id="theme-intensity">
+                        <option value="0">выключить</option>
+                        <option value="0.5">мало</option>
+                        <option value="1">обычно</option>
+                        <option value="2">много</option>
+                        <option value="3">очень много</option>
+                    </select>
+                </label>
+                <label>
+                    Ролик по клику на монстра
+                    <input type="text" id="theme-video" maxlength="300"
+                        placeholder="/static/assets/scream.mp4">
+                </label>
+                <button type="button" class="panel-btn" id="theme-video-save">Сохранить</button>
+            </div>
+        </section>
+
+        <section class="admin-section">
+            <div class="admin-section__head">
+                <h2>Сообщения</h2>
+                <label class="switch switch--inline">
+                    <input type="checkbox" id="messages-toggle">
+                    <span></span>
+                </label>
+                <span class="engine-note" id="messages-note">Показывать сообщения</span>
+                <button type="button" class="panel-btn admin-add" id="message-add">
+                    <i class="fas fa-plus"></i> Добавить
+                </button>
+            </div>
+            <div class="table-scroll">
+                <table class="admin-table" id="messages-table">
+                    <thead>
+                        <tr>
+                            <th>Текст бегущей строки</th>
+                            <th>Цвет</th>
+                            <th>Показывать</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="admin-section">
+            <div class="admin-section__head">
+                <h2>Достижения</h2>
+                <button type="button" class="panel-btn admin-add" id="achievement-add">
+                    <i class="fas fa-trophy"></i> Добавить
+                </button>
+            </div>
+            <div class="table-scroll">
+                <table class="admin-table" id="achievements-table">
+                    <thead>
+                        <tr>
+                            <th>Название</th>
+                            <th>Картинка</th>
+                            <th>Описание</th>
+                            <th>За что</th>
+                            <th>Редкость</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="admin-section">
+            <div class="admin-section__head">
+                <h2>Достижения пользователей</h2>
+                <span class="engine-note" id="user-achievements-note"></span>
+            </div>
+            <div class="table-scroll">
+                <table class="admin-table" id="user-achievements-table">
+                    <thead>
+                        <tr>
+                            <th>Пользователь / книга / достижение</th>
+                            <th>Редкость</th>
+                            <th>Получено</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="admin-section" id="requests-section" hidden>
+            <div class="admin-section__head">
+                <h2>Запрошенные книги</h2>
+                <span class="engine-note" id="requests-note"></span>
+            </div>
+            <div class="table-scroll">
+                <table class="admin-table" id="requests-table">
+                    <thead>
+                        <tr>
+                            <th>Книга</th>
+                            <th>Кто запросил</th>
+                            <th>Первая просьба</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="admin-section">
+            <div class="admin-section__head">
                 <h2>Учётные записи</h2>
                 <button type="button" class="panel-btn admin-add" id="add-user-btn">
                     <i class="fas fa-user-plus"></i> Добавить
@@ -58,6 +207,65 @@
                     <tbody></tbody>
                 </table>
             </div>
+        </section>
+
+        <section class="admin-section">
+            <div class="admin-section__head">
+                <h2>Текстовые версии книг</h2>
+                <span class="engine-note" id="engine-note"></span>
+            </div>
+            <p class="worker-hint">
+                Текст создаёт отдельная программа из папки <code>worker/</code> на другом
+                компьютере. Галочка ставит книгу в очередь, распознаватель разбирает её сам.
+                Адрес сервера: <code id="worker-host"></code>,
+                токен: <code id="worker-token">—</code>
+            </p>
+            <div class="tree-legend">
+                <span>Переключатель есть на каждом уровне: включите его на папке —
+                    текст встанет в очередь для всех книг внутри.</span>
+            </div>
+            <div class="library-tree" id="library-tree"></div>
+        </section>
+
+        <section class="admin-section" id="textbooks-section" hidden>
+            <div class="admin-section__head">
+                <h2>Текстовые книги</h2>
+                <span class="engine-note" id="textbooks-note"></span>
+            </div>
+            <p class="worker-hint">
+                Папки, где лежит документ — <code>pdf</code>, <code>docx</code>,
+                <code>txt</code>, <code>fb2</code> или <code>epub</code>.
+                В медиатеке их не видно: слушателю там пока нечего открыть.
+                Появятся, когда книгу озвучат.
+            </p>
+            <div class="table-scroll">
+                <table class="admin-table" id="textbooks-table">
+                    <thead>
+                        <tr>
+                            <th>Книга</th>
+                            <th>Документ</th>
+                            <th>Размер</th>
+                            <th>Аудио</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="admin-section" id="voice-section" hidden>
+            <div class="admin-section__head">
+                <h2>Аудио версии книг</h2>
+                <span class="engine-note" id="voice-note"></span>
+            </div>
+            <p class="worker-hint">
+                Галочка ставит книгу в очередь на озвучку. Разбирает её тот же
+                <code>worker/</code>: достаёт текст из документа, режет на главы
+                и наговаривает каждую голосом с интонацией. Готовые главы
+                ложатся в папку книги — после этого она появляется в медиатеке
+                сама, вместе с текстом для режима чтения.
+            </p>
+            <div class="library-tree" id="voice-list"></div>
         </section>
 
         <section class="admin-section">
@@ -134,6 +342,7 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/themes.js') }}"></script>
     <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 </body>
 

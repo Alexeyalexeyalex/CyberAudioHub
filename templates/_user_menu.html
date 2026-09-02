@@ -1,7 +1,42 @@
+<!-- Бегущие строки: закреплены внизу и видны на любой странице -->
+<div class="site-messages" id="site-messages" hidden></div>
+
+<!-- Всплывающее сообщение о новом достижении -->
+<div class="achievement-toasts" id="achievement-toasts"></div>
+
+<!-- Общее окно вместо браузерных alert/confirm/prompt: они выпадают из
+     оформления сайта и по-разному выглядят в разных браузерах. -->
+<div class="auth-overlay" id="ui-dialog-overlay" hidden>
+    <div class="auth-modal ui-dialog" role="dialog" aria-modal="true" aria-labelledby="ui-dialog-title">
+        <button type="button" class="auth-modal__close" id="ui-dialog-close" aria-label="Закрыть">
+            <i class="fas fa-xmark"></i>
+        </button>
+        <h2 id="ui-dialog-title">Подтверждение</h2>
+        <p class="ui-dialog__text" id="ui-dialog-text"></p>
+        <div class="ui-dialog__choices" id="ui-dialog-choices" hidden></div>
+        <div class="ui-dialog__field" id="ui-dialog-field" hidden>
+            <input type="text" id="ui-dialog-input" maxlength="120" autocomplete="off">
+        </div>
+        <p class="auth-error" id="ui-dialog-error" hidden></p>
+        <div class="ui-dialog__actions">
+            <button type="button" class="panel-btn" id="ui-dialog-cancel">Отмена</button>
+            <button type="button" class="auth-submit" id="ui-dialog-ok">ОК</button>
+        </div>
+    </div>
+</div>
+
+<!-- Сообщение для администраторов: читатели просят текстовые версии.
+     Лежит рядом с профилем, поэтому видно на любой странице. -->
+<a class="admin-alert" id="admin-alert" href="/admin" hidden>
+    <i class="fas fa-hand"></i>
+    <span>Запрошены текстовые книги<span id="admin-alert-count"></span></span>
+</a>
+
 <div class="user-area" id="user-area">
     <button type="button" class="user-chip" id="user-chip" hidden aria-haspopup="dialog" aria-expanded="false">
         <i class="fas fa-user-astronaut"></i>
         <span id="user-chip-name">…</span>
+        <span class="chip-badge" id="chip-badge" title="Заявки в друзья" hidden></span>
         <i class="fas fa-chevron-down user-chip__caret"></i>
     </button>
 
@@ -53,6 +88,17 @@
 
         <div class="user-panel__footer">
             <p class="panel-message" id="panel-message" role="status"></p>
+            <a class="panel-btn panel-link" href="/achievements">
+                <i class="fas fa-trophy"></i> Достижения
+            </a>
+            <a class="panel-btn panel-link" href="/friends">
+                <i class="fas fa-user-group"></i> Друзья
+                <span class="panel-badge" id="friends-badge" hidden></span>
+            </a>
+            <a class="panel-btn panel-link" id="app-download" href="/download/app" hidden>
+                <i class="fab fa-android"></i> Скачать приложение на Android
+                <span class="app-size" id="app-size"></span>
+            </a>
             <button type="button" class="panel-btn panel-btn--danger" id="logout-btn">
                 <i class="fas fa-power-off"></i> Выйти
             </button>

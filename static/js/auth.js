@@ -8,7 +8,8 @@
 
     const LOCAL_KEY = 'cyberAudioProgress';
 
-    let user = null;                 // {login, nickname} или null
+    let user = null;
+    let downloads = false;                 // {login, nickname} или null
     let progressCache = null;        // Map: path -> запись прогресса
     const listeners = [];
 
@@ -117,6 +118,7 @@
         progressCache = null;   // прогресс всегда принадлежит конкретному аккаунту
         renderUserArea();
         notify();
+        refreshAdminAlert();    // у нового пользователя свой счёт просьб
     }
 
     async function loadProgress(force = false) {
@@ -183,6 +185,68 @@
             els.userChip.hidden = true;
             els.guestChip.hidden = false;
             closePanel();
+        }
+    }
+
+    /**
+     * Сообщение администратору о просьбах читателей. Живёт рядом с профилем,
+     * поэтому попадается на глаза на любой странице, а не только в панели.
+     */
+    /** Значок с числом заявок в друзья — рядом с ником и в панели. */
+    function renderFriendBadge(count) {
+        const badge = document.getElementById('friends-badge');
+        if (badge) {
+            badge.hidden = !count;
+            badge.textContent = count || '';
+        }
+        const chipBadge = document.getElementById('chip-badge');
+        if (chipBadge) {
+            chipBadge.hidden = !count;
+            chipBadge.textContent = count || '';
+        }
+    }
+
+    /**
+     * Кнопку скачивания показываем, только если APK действительно собран:
+     * иначе она вела бы в никуда.
+     */
+    async function checkApp() {
+        const link = document.getElementById('app-download');
+        if (!link) return;
+        try {
+            const data = await api('/api/app');
+            link.hidden = !data.ready;
+            const size = document.getElementById('app-size');
+            if (size && data.ready) {
+                size.textContent = ` ${(data.size / (1024 * 1024)).toFixed(1)} МБ`;
+            }
+        } catch (e) {
+            link.hidden = true;
+        }
+    }
+
+    function renderAdminAlert(count) {
+        const box = document.getElementById('admin-alert');
+        if (!box) return;
+        const show = Boolean(user && user.is_admin && count > 0);
+        box.hidden = !show;
+        const badge = document.getElementById('admin-alert-count');
+        if (badge) badge.textContent = show && count > 1 ? ` (${count})` : '';
+    }
+
+    async function refreshAdminAlert() {
+        if (!user) {
+            renderAdminAlert(0);
+            renderFriendBadge(0);
+            return;
+        }
+        try {
+            const data = await api('/api/me');
+            renderAdminAlert(data.text_requests || 0);
+            renderFriendBadge(data.friend_requests || 0);
+        } catch (e) {
+            renderAdminAlert(0);
+            renderFriendBadge(0);
         }
     }
 
@@ -429,11 +493,16 @@
             try {
                 const data = await api('/api/me');
                 user = data.user;
+                downloads = Boolean(data.downloads);
+                renderAdminAlert(data.text_requests || 0);
+                renderFriendBadge(data.friend_requests || 0);
             } catch (e) {
                 user = null;
             }
             renderUserArea();
             notify();
+            messages.load();
+            checkApp();
             resolve(user);
         };
         if (document.readyState === 'loading') {
@@ -443,10 +512,297 @@
         }
     });
 
+    /**
+     * Окна сайта вместо браузерных alert/confirm/prompt. Возвращают промис:
+     * confirm/prompt — значение или null при отказе, alert — undefined.
+     */
+    const dialog = (() => {
+        const $$ = (id) => document.getElementById(id);
+        let resolver = null;
+
+        const close = (value) => {
+            const overlay = $$('ui-dialog-overlay');
+            if (overlay) overlay.hidden = true;
+            document.body.classList.remove('is-dialog-open');
+            const done = resolver;
+            resolver = null;
+            if (done) done(value);
+        };
+
+        const open = (params) => new Promise((resolve) => {
+            const { title, text, mode, value, okText, options } = params;
+            const overlay = $$('ui-dialog-overlay');
+            if (!overlay) {   // страница без общего фрагмента — не зависаем
+                resolve(mode === 'confirm' ? window.confirm(text) : null);
+                return;
+            }
+            resolver = resolve;
+            $$('ui-dialog-title').textContent = title || 'Подтверждение';
+            $$('ui-dialog-text').textContent = text || '';
+            $$('ui-dialog-text').hidden = !text;
+            $$('ui-dialog-error').hidden = true;
+            const field = $$('ui-dialog-field');
+            const input = $$('ui-dialog-input');
+            field.hidden = mode !== 'prompt';
+
+            const list = $$('ui-dialog-choices');
+            list.innerHTML = '';
+            list.hidden = !['choice', 'multi', 'tree'].includes(mode);
+            if (mode === 'tree') {
+                // Папки свёрнуты: в большой медиатеке раскрытое дерево
+                // пришлось бы листать целую страницу
+                const addNode = (parent, node, depth) => {
+                    const row = document.createElement('button');
+                    row.type = 'button';
+                    row.className = 'ui-dialog__choice ui-dialog__choice--tree';
+                    row.style.paddingLeft = `${0.85 + depth * 1.1}rem`;
+                    const folder = Boolean(node.children && node.children.length);
+
+                    if (folder) {
+                        row.innerHTML = `<i class="fas fa-chevron-right"></i> ${node.label}`;
+                        const branch = document.createElement('div');
+                        branch.className = 'ui-dialog__branch';
+                        branch.hidden = true;
+
+                        // У папки может быть свой выбор «вся папка целиком»
+                        if (node.value) {
+                            const whole = document.createElement('button');
+                            whole.type = 'button';
+                            whole.className = 'ui-dialog__choice ui-dialog__choice--tree';
+                            whole.style.paddingLeft = `${0.85 + (depth + 1) * 1.1}rem`;
+                            whole.innerHTML =
+                                `<i class="fas fa-layer-group"></i> Вся папка «${node.label}»`;
+                            whole.addEventListener('click', () => close(node.value));
+                            branch.appendChild(whole);
+                        }
+                        node.children.forEach(child => addNode(branch, child, depth + 1));
+
+                        row.addEventListener('click', () => {
+                            branch.hidden = !branch.hidden;
+                            row.querySelector('i').className = branch.hidden
+                                ? 'fas fa-chevron-right' : 'fas fa-chevron-down';
+                        });
+                        parent.append(row, branch);
+                        return;
+                    }
+
+                    row.innerHTML = `<i class="fas fa-book"></i> ${node.label}`;
+                    row.addEventListener('click', () => close(node.value));
+                    parent.appendChild(row);
+                };
+
+                (options || []).forEach(node => addNode(list, node, 0));
+            }
+            if (mode === 'multi') {
+                const preset = new Set((params.picked || []).map(String));
+                (options || []).forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'ui-dialog__choice ui-dialog__choice--multi';
+                    btn.dataset.value = opt.value;
+                    const on = preset.has(String(opt.value));
+                    if (on) btn.classList.add('is-picked');
+                    btn.innerHTML =
+                        `<i class="${on ? 'fas fa-square-check' : 'far fa-square'}"></i> ${opt.label}`;
+                    btn.addEventListener('click', () => {
+                        const on = btn.classList.toggle('is-picked');
+                        btn.querySelector('i').className = on
+                            ? 'fas fa-square-check' : 'far fa-square';
+                    });
+                    list.appendChild(btn);
+                });
+            } else if (mode === 'choice') {
+                (options || []).forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'ui-dialog__choice';
+                    btn.innerHTML = opt.icon
+                        ? `<i class="fas ${opt.icon}"></i> ${opt.label}`
+                        : opt.label;
+                    if (opt.hint) {
+                        const hint = document.createElement('span');
+                        hint.className = 'ui-dialog__choice-hint';
+                        hint.textContent = opt.hint;
+                        btn.appendChild(hint);
+                    }
+                    btn.addEventListener('click', () => close(opt.value));
+                    list.appendChild(btn);
+                });
+            }
+            input.value = value || '';
+            $$('ui-dialog-ok').textContent = okText || 'ОК';
+            $$('ui-dialog-ok').hidden = mode === 'choice' || mode === 'tree';
+            $$('ui-dialog-cancel').hidden = mode === 'alert';
+            overlay.hidden = false;
+            document.body.classList.add('is-dialog-open');
+            setTimeout(() => (mode === 'prompt' ? input.focus() : $$('ui-dialog-ok').focus()), 50);
+        });
+
+        const bind = () => {
+            const overlay = $$('ui-dialog-overlay');
+            if (!overlay || overlay.dataset.bound) return;
+            overlay.dataset.bound = '1';
+            const input = $$('ui-dialog-input');
+            const submit = () => {
+                const list = $$('ui-dialog-choices');
+                if (!list.hidden && list.querySelector('.ui-dialog__choice--multi')) {
+                    close([...list.querySelectorAll('.is-picked')]
+                        .map(b => b.dataset.value));
+                    return;
+                }
+                const mode = $$('ui-dialog-field').hidden ? 'confirm' : 'prompt';
+                if (mode === 'prompt') {
+                    const text = input.value.trim();
+                    if (!text) {
+                        const err = $$('ui-dialog-error');
+                        err.textContent = 'Введите значение';
+                        err.hidden = false;
+                        return;
+                    }
+                    close(text);
+                } else {
+                    close(true);
+                }
+            };
+            $$('ui-dialog-ok').addEventListener('click', submit);
+            $$('ui-dialog-cancel').addEventListener('click', () => close(null));
+            $$('ui-dialog-close').addEventListener('click', () => close(null));
+            // Клик по затемнению намеренно ничего не делает: заполненную
+            // форму обидно терять промахом мимо окна
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') submit();
+            });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !overlay.hidden) close(null);
+            });
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bind);
+        } else {
+            bind();
+        }
+
+        return {
+            alert: (text, title) => open({ title: title || 'Сообщение', text, mode: 'alert' }),
+            confirm: (text, title, okText) =>
+                open({ title: title || 'Подтверждение', text, mode: 'confirm', okText })
+                    .then(v => Boolean(v)),
+            prompt: (text, value, title, okText) =>
+                open({ title: title || 'Ввод', text, mode: 'prompt', value, okText }),
+            choose: (text, options, title) =>
+                open({ title: title || 'Выбор', text, mode: 'choice', options }),
+            chooseMany: (text, options, title, okText, picked) =>
+                open({ title: title || 'Выбор', text, mode: 'multi', options,
+                       okText: okText || 'Готово', picked }),
+            chooseTree: (text, options, title) =>
+                open({ title: title || 'Выбор', text, mode: 'tree', options }),
+        };
+    })();
+
+    /**
+     * Бегущие строки внизу экрана. Закрытые не возвращаются до перезагрузки:
+     * помним их только в памяти вкладки, ничего не сохраняя.
+     */
+    const messages = (() => {
+        const closed = new Set();
+
+        const render = (list) => {
+            const box = document.getElementById('site-messages');
+            if (!box) return;
+            const visible = (list || []).filter(m => !closed.has(m.id));
+            box.hidden = visible.length === 0;
+            box.innerHTML = '';
+
+            visible.forEach((item) => {
+                const line = document.createElement('div');
+                line.className = `site-message site-message--${item.color}`;
+
+                // Строка выезжает от правого края, проходит всю ширину и
+                // уходит за левый, затем начинает заново — отсюда отступ
+                // слева на всю ширину окна просмотра.
+                const viewport = document.createElement('div');
+                viewport.className = 'site-message__viewport';
+                const track = document.createElement('div');
+                track.className = 'site-message__track';
+                const text = document.createElement('span');
+                text.className = 'site-message__text';
+                text.textContent = item.text;
+                track.appendChild(text);
+                viewport.appendChild(track);
+
+                const close = document.createElement('button');
+                close.type = 'button';
+                close.className = 'site-message__close';
+                close.setAttribute('aria-label', 'Закрыть сообщение');
+                // Свой крестик: у шрифтового значка слишком толстые линии
+                close.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true">' +
+                    '<path d="M4 4 L12 12 M12 4 L4 12" stroke="currentColor" ' +
+                    'stroke-width="1.2" stroke-linecap="round" fill="none"/></svg>';
+                close.addEventListener('click', () => {
+                    closed.add(item.id);
+                    render(list);
+                });
+
+                line.append(viewport, close);
+                // Скорость одинаковая для любых строк: считаем по пути,
+                // который предстоит пройти, а не по числу букв
+                requestAnimationFrame(() => {
+                    const distance = viewport.clientWidth + text.offsetWidth;
+                    track.style.animationDuration = `${Math.max(10, distance / 90)}s`;
+                });
+                box.appendChild(line);
+            });
+        };
+
+        const load = async () => {
+            try {
+                const resp = await fetch('/api/messages');
+                const data = await resp.json();
+                render(data.messages || []);
+            } catch (e) {
+                /* без сообщений сайт работает так же */
+            }
+        };
+
+        return { load };
+    })();
+
+    /** Короткое всплывающее уведомление о новом достижении. */
+    function showAchievement(item) {
+        const box = document.getElementById('achievement-toasts');
+        if (!box) return;
+        // Уведомление — ссылка: по клику открывается нужный раздел достижений
+        const toast = document.createElement('a');
+        const book = (item.target_path || '').split('/').pop().replace(/_/g, ' ');
+        toast.href = book
+            ? `/achievements?book=${encodeURIComponent(book)}`
+            : '/achievements';
+        toast.className = `achievement-toast achievement-toast--${item.rarity}`;
+        const picture = item.image
+            ? `<img src="${item.image}" alt="" onerror="this.remove();">`
+            : '<i class="fas fa-trophy"></i>';
+        toast.innerHTML = `
+            <div class="achievement-toast__pic">${picture}</div>
+            <div>
+                <p class="achievement-toast__label">Достижение получено</p>
+                <p class="achievement-toast__title"></p>
+            </div>`;
+        toast.querySelector('.achievement-toast__title').textContent = item.title;
+        box.appendChild(toast);
+        setTimeout(() => toast.classList.add('is-leaving'), 5000);
+        setTimeout(() => toast.remove(), 5600);
+    }
+
+    window.CyberUI = dialog;
+    window.CyberMessages = messages;
+    window.CyberAchievements = { show: showAchievement };
+
     window.CyberAuth = {
         ready,
         get user() { return user; },
         isLoggedIn: () => Boolean(user),
+        downloadsEnabled: () => downloads,
         onChange: (cb) => { listeners.push(cb); },
         loadProgress,
         saveProgress,
@@ -454,6 +810,7 @@
         localProgress,
         reportDurations,
         openAuth,
+        refreshAdminAlert,
         formatDuration,
         formatClock,
         isFinished
