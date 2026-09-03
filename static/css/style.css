@@ -3973,6 +3973,360 @@ body.theme-halloween .admin-header h1 {
 }
 
 /* ==========================================================================
+   СТАТИСТИКА ПРОСЛУШИВАНИЯ
+
+   Диаграммы — инлайновый SVG, поэтому цвета берутся из тех же переменных,
+   что и весь остальной сайт: праздничное оформление перекрашивает их
+   заодно со всем прочим, без единой строки на JavaScript.
+   ========================================================================== */
+
+.stats-who {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.stats-who__label {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+}
+
+.stats-who__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.stats-chip {
+    padding: 0.5rem 1rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--primary-color) 6%, transparent);
+    border: 1px solid var(--stroke-soft);
+    border-radius: 99px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+        color var(--dur-fast) var(--ease-out),
+        border-color var(--dur-fast) var(--ease-out),
+        background-color var(--dur-fast) var(--ease-out);
+}
+
+.stats-chip.is-active {
+    color: var(--dark-bg);
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--primary-color) 35%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .stats-chip:not(.is-active):hover {
+        color: var(--text-color);
+        border-color: var(--stroke);
+    }
+}
+
+.stats-guest {
+    color: var(--text-secondary);
+    padding: 1.5rem 0;
+}
+
+/* --- Плитки с итогами --- */
+
+.stat-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 1rem;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 45%),
+        var(--card-bg);
+    border: 1px solid var(--stroke-soft);
+    border-radius: var(--radius-m);
+    box-shadow: var(--edge-light), var(--lift-1);
+    backdrop-filter: blur(12px) saturate(1.2);
+}
+
+.stat-tile i {
+    font-size: 1.1rem;
+    margin-bottom: 0.35rem;
+    color: var(--primary-color);
+}
+
+.stat-tile--secondary i {
+    color: var(--secondary-color);
+}
+
+.stat-tile--green i {
+    color: var(--neon-green);
+}
+
+.stat-tile__value {
+    font-size: clamp(1.3rem, 1.1rem + 0.8vw, 1.7rem);
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--text-color);
+    font-variant-numeric: tabular-nums;
+}
+
+.stat-tile__label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-secondary);
+}
+
+/* --- Сетка карточек --- */
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+    gap: 1rem;
+    align-items: start;
+}
+
+.stats-card {
+    margin-bottom: 0;
+    padding: 1.1rem;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 30%),
+        var(--card-bg);
+    border: 1px solid var(--stroke-soft);
+    border-radius: var(--radius-m);
+    box-shadow: var(--edge-light), var(--lift-1);
+    backdrop-filter: blur(12px) saturate(1.2);
+}
+
+/* Широкие карточки занимают всю строку, но только когда строка из
+   нескольких колонок: на телефоне и так всё в один столбец */
+@media (min-width: 700px) {
+    .stats-card--wide {
+        grid-column: 1 / -1;
+    }
+}
+
+.stats-card .admin-section__head h2 {
+    font-size: 1.05rem;
+    margin-bottom: 0;
+}
+
+.chart-box {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.chart {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+/* --- Части диаграмм --- */
+
+.chart__grid {
+    stroke: var(--stroke-soft);
+    stroke-width: 1;
+}
+
+.chart__axis {
+    fill: var(--text-secondary);
+    font-family: inherit;
+    font-size: 11px;
+}
+
+.chart__label {
+    fill: var(--text-color);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.chart__caption {
+    fill: var(--text-secondary);
+    font-family: inherit;
+    font-size: 12px;
+}
+
+.chart__big {
+    fill: var(--primary-color);
+    font-family: inherit;
+    font-size: 34px;
+    font-weight: 700;
+}
+
+.chart__bar {
+    fill: var(--primary-color);
+    /* Свечение даёт фильтр, а не тень: у SVG box-shadow не работает */
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--primary-color) 45%, transparent));
+}
+
+.chart__bar--alt {
+    fill: var(--secondary-color);
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--secondary-color) 45%, transparent));
+}
+
+/* День без прослушивания: тонкая линия у основания, без свечения */
+.chart__bar--empty {
+    fill: var(--stroke-soft);
+    filter: none;
+}
+
+.chart__track {
+    fill: rgba(255, 255, 255, 0.07);
+}
+
+.chart__ring-bg {
+    stroke: rgba(255, 255, 255, 0.08);
+}
+
+.chart__ring {
+    stroke: var(--primary-color);
+    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--primary-color) 50%, transparent));
+    transition: stroke-dasharray var(--dur-slow) var(--ease-out);
+}
+
+/* ==========================================================================
+   ЗОНА НАЖАТИЯ НА СЕНСОРНЫХ ЭКРАНАХ
+
+   Замер на экране 375px показал 26 элементов мельче 44 пикселей: ряд кнопок
+   плеера шёл по 38, а иконки скачивания главы — по 32. Пальцем по такому
+   попасть трудно, особенно на ходу.
+
+   Ориентир — 44 пикселя: столько советуют и Apple, и Google, и WCAG.
+
+   Условие тут pointer: coarse, а не ширина экрана. Промахивается не узкий
+   экран, а палец: на планшете шириной 1024 пикселя мимо кнопки попадают
+   ровно так же, а мышью на узком окне — нет.
+
+   Кнопки плеера при этом НЕ раздуваем. Их восемь в ряду шириной 325px,
+   по 44 они туда не влезают и переносятся на вторую строку. Вместо этого
+   растягиваем невидимую зону нажатия псевдоэлементом: на вид кнопка та же,
+   а попасть по ней можно с запасом. Ширину берём по шагу сетки (кнопка
+   плюс зазор), чтобы соседние зоны стыковались, но не перекрывались —
+   иначе край одной кнопки воровал бы нажатия у другой.
+   ========================================================================== */
+
+@media (pointer: coarse) {
+
+    /* --- Кнопки плеера: зона больше самой кнопки --- */
+    .control-btn {
+        position: relative;
+    }
+
+    .control-btn::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        /* Размер задан числом, а не через 100%: у absolute проценты
+           считаются от padding-box, а у кнопки есть рамка — получалось
+           на два пикселя меньше нужного.
+           44 — это ровно шаг сетки (кнопка 40 плюс зазор 4), поэтому зоны
+           соседних кнопок стыкуются вплотную и не перекрываются. */
+        width: 44px;
+        height: 48px;
+        transform: translate(-50%, -50%);
+    }
+
+    /* Размеры подобраны под ширину ряда на экране 375px: семь кнопок
+       (6 x 40 + 50 у Play) с зазорами занимают 314 из 325 доступных.
+       При 42px не хватало восьми пикселей, и крайняя кнопка переносилась
+       на вторую строку. */
+    .player-controls {
+        gap: 0.25rem;
+    }
+
+    .control-btn {
+        width: 40px;
+        height: 40px;
+    }
+
+    .play-btn {
+        width: 50px;
+        height: 50px;
+    }
+
+    /* --- Всё остальное просто доводим до 44 --- */
+
+    /* В строке главы места достаточно, поэтому иконку скачивания
+       увеличиваем по-настоящему, а не хитростью с псевдоэлементом */
+    .track-download {
+        width: 44px;
+        height: 44px;
+    }
+
+    .track-item {
+        min-height: 48px;
+    }
+
+    .search-clear {
+        width: 44px;
+        height: 44px;
+    }
+
+    .row-btn,
+    .progress-list__reset,
+    .user-panel__close,
+    .auth-modal__close {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .user-chip,
+    .back-button,
+    .mini-btn,
+    .panel-btn,
+    .auth-submit,
+    .auth-tab {
+        min-height: 44px;
+    }
+
+    .breadcrumb-item {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+    }
+
+    /* Переключатели в дереве админки: сам ползунок маленький,
+       но нажимать можно по всей высоте строки */
+    .switch {
+        min-width: 44px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    /* --- Поля ввода ---
+       Safari на iOS сам приближает страницу, когда фокус попадает в поле
+       с текстом мельче 16px, и обратно уже не отдаляет. Поэтому на сенсорных
+       экранах шрифт полей ровно 16px — это не про красоту, а про то, чтобы
+       страница не «прыгала» при каждом касании поиска. */
+    input,
+    select,
+    textarea {
+        font-size: 16px;
+        min-height: 44px;
+    }
+
+    .library-search input {
+        font-size: 16px;
+    }
+}
+
+/* ==========================================================================
    ОБЩАЯ ОТДЕЛКА
 
    Мелочи, которых в файле не было: полосы прокрутки, выделение текста,

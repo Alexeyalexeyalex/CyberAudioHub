@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Полка под рядом книг. На скриншоте это деревянный брусок; здесь —
+     светящаяся линия: дерево спорило бы со всем остальным оформлением. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:startColor="#0000F2FF"
+        android:centerColor="#8000F2FF"
+        android:endColor="#0000F2FF"
+        android:angle="0" />
+    <corners android:radius="1dp" />
+</shape>

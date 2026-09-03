@@ -863,6 +863,14 @@ def list_progress(conn, user_id):
     ).fetchall()
 
 
+def user_completions(conn, user_id):
+    """Все дослушанные главы человека — основа статистики прослушивания."""
+    return conn.execute(
+        "SELECT path, track_index, completed_at FROM track_completions "
+        "WHERE user_id = ? ORDER BY completed_at", (user_id,)
+    ).fetchall()
+
+
 def delete_progress(conn, user_id, path):
     conn.execute("DELETE FROM progress WHERE user_id = ? AND path = ?", (user_id, path))
     conn.commit()

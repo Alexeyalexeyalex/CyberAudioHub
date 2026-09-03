@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Только внешний кеш: туда кладётся скачанный APK обновления.
+         Личную папку с книгами наружу не отдаём. -->
+    <external-cache-path name="updates" path="." />
+</paths>

@@ -4,7 +4,7 @@ import re
 import sqlite3
 import secrets
 import functools
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 
 from flask import (Flask, jsonify, render_template, url_for, request, abort,
                    session, g, send_file)
@@ -1485,6 +1485,150 @@ def api_compare_achievements(friend_id):
     })
 
 
+# --- Статистика прослушивания ---
+#
+# Считается на лету из того, что уже копится: track_completions даёт, что и
+# когда дослушано, albums — длительности дорожек, progress — где человек
+# остановился. Отдельной таблицы под статистику нет намеренно: любая такая
+# таблица рано или поздно разъезжается с исходными данными.
+
+# Сколько дней показываем на графике активности.
+STATS_DAYS = 30
+
+
+def _track_seconds(durations, path, index):
+    tracks = durations.get(path) or []
+    if 0 <= index < len(tracks):
+        try:
+            return max(0.0, float(tracks[index]))
+        except (TypeError, ValueError):
+            return 0.0
+    return 0.0
+
+
+def listening_stats(conn, user_id):
+    """
+    Всё, что нужно странице статистики, одним ответом: и цифры в плитках,
+    и ряды для графиков. Собираем на сервере, а не на клиенте, чтобы браузер
+    не тянул к себе всю историю прослушивания ради пары чисел.
+    """
+    cached = database.get_all_album_durations(conn)
+    durations = {path: info['durations'] for path, info in cached.items()}
+    completions = database.user_completions(conn, user_id)
+    progress_rows = database.list_progress(conn, user_id)
+
+    # --- Сколько прослушано ---
+    listened = 0.0
+    by_book = {}
+    done_keys = set()
+    for row in completions:
+        path, index = row['path'], row['track_index']
+        done_keys.add((path, index))
+        seconds = _track_seconds(durations, path, index)
+        listened += seconds
+        by_book[path] = by_book.get(path, 0.0) + seconds
+
+    # Начатая, но не дослушанная глава: прибавляем ровно то, что услышано.
+    # Если глава уже засчитана дослушанной, второй раз не прибавляем.
+    for row in progress_rows:
+        if (row['path'], row['track_index']) in done_keys:
+            continue
+        position = max(0.0, float(row['position'] or 0))
+        listened += position
+        by_book[row['path']] = by_book.get(row['path'], 0.0) + position
+
+    # --- Книги ---
+    started = len(progress_rows)
+    finished = sum(1 for r in progress_rows if r['finished'])
+
+    # --- Активность по дням ---
+    today = datetime.now(timezone.utc).date()
+    per_day = {}
+    for row in completions:
+        stamp = (row['completed_at'] or '')[:10]
+        if stamp:
+            per_day[stamp] = per_day.get(stamp, 0) + 1
+    days = [{"date": (today - timedelta(days=back)).isoformat(),
+             "chapters": per_day.get((today - timedelta(days=back)).isoformat(), 0)}
+            for back in range(STATS_DAYS - 1, -1, -1)]
+
+    # --- Активность по дням недели ---
+    weekday = [0] * 7
+    for row in completions:
+        try:
+            weekday[date.fromisoformat((row['completed_at'] or '')[:10]).weekday()] += 1
+        except (ValueError, TypeError):
+            continue
+
+    # --- Топ книг по времени ---
+    top = sorted(by_book.items(), key=lambda kv: kv[1], reverse=True)[:6]
+    top_books = [{"path": path,
+                  "title": os.path.basename(path).replace('_', ' '),
+                  "seconds": round(seconds)}
+                 for path, seconds in top if seconds > 0]
+
+    # --- Достижения ---
+    earned = len(database.user_achievement_rows(conn, user_id))
+
+    # Дней подряд: шагаем от сегодня назад, пока в дне есть хоть одна глава
+    streak = 0
+    probe = today
+    while per_day.get(probe.isoformat()):
+        streak += 1
+        probe -= timedelta(days=1)
+
+    return {
+        "seconds": round(listened),
+        "chapters": len(completions),
+        "books_started": started,
+        "books_finished": finished,
+        "achievements": earned,
+        "achievements_total": len(database.list_achievements(conn)),
+        "streak": streak,
+        "days": days,
+        "weekday": weekday,
+        "top_books": top_books,
+    }
+
+
+@app.route('/stats')
+def stats_page():
+    return render_template('stats.html')
+
+
+@app.route('/api/stats')
+@login_required
+def api_stats():
+    """
+    Своя статистика или, по запросу, статистика друга. Чужую отдаём только
+    друзьям: сколько человек слушает и что именно — сведения не публичные.
+    Список друзей возвращаем тем же ответом, чтобы переключатель на странице
+    не делал второй запрос.
+    """
+    conn = get_db()
+    me = current_user()
+    friends = [person(f) for f in database.list_friends(conn, me['id'])]
+    raw_id = request.args.get('user')
+
+    if not raw_id or str(raw_id) == str(me['id']):
+        return jsonify({"person": person(me), "self": True, "friends": friends,
+                        "stats": listening_stats(conn, me['id'])})
+
+    try:
+        other_id = int(raw_id)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Некорректный пользователь"}), 400
+
+    if database.friend_state(conn, me['id'], other_id) != 'friends':
+        return jsonify({"error": "Это не ваш друг"}), 403
+    other = database.find_user_by_id(conn, other_id)
+    if other is None:
+        return jsonify({"error": "Пользователь не найден"}), 404
+
+    return jsonify({"person": person(other), "self": False, "friends": friends,
+                    "stats": listening_stats(conn, other_id)})
+
+
 # Праздничные оформления. Ключ в meta -> класс на странице.
 THEMES = (
     {"id": "newyear", "name": "Новый год", "hint": "холодный свет, искры и иней на обложках"},
@@ -1514,15 +1658,49 @@ def built_apk():
     return os.path.join(APP_FOLDER, files[-1])
 
 
+def apk_version(path):
+    """
+    Версия собранного приложения. Читаем прямо из APK: он же обычный zip,
+    а номер версии лежит в AndroidManifest.xml. Разбирать двоичный манифест
+    целиком не нужно — достаточно версии из файла version.txt, который
+    кладёт рядом сборка. Если его нет, отдаём время сборки: приложение
+    сравнит и поймёт, что файл сменился.
+    """
+    marker = os.path.join(os.path.dirname(path), 'version.txt')
+    if os.path.isfile(marker):
+        try:
+            with open(marker, encoding='utf-8') as f:
+                parts = f.read().split()
+            # Формат: «код имя», например «2 1.1»
+            return int(parts[0]), (parts[1] if len(parts) > 1 else parts[0])
+        except (ValueError, IndexError, OSError):
+            pass
+    # Без version.txt честно отвечаем «версия неизвестна». Раньше здесь
+    # подставлялось время правки файла — и приложение видело число в
+    # миллиардах, считало его новее своей единицы и предлагало обновиться
+    # на самого себя при каждом запуске.
+    return 0, ''
+
+
 @app.route('/api/app')
 def api_app_info():
-    """Есть ли собранное приложение — по этому кнопка решает, показываться ли."""
+    """
+    Есть ли собранное приложение и какой оно версии.
+
+    По этому ответу сайт решает, показывать ли кнопку скачивания, а само
+    приложение — предлагать ли обновиться: оно сравнивает код версии
+    со своим и, если серверный больше, зовёт обновиться.
+    """
     apk = built_apk()
     if not apk:
         return jsonify({"ready": False})
+    code, name = apk_version(apk)
     return jsonify({"ready": True,
                     "size": os.path.getsize(apk),
-                    "name": os.path.basename(apk)})
+                    "name": os.path.basename(apk),
+                    "version_code": code,
+                    "version_name": name,
+                    "url": "/download/app"})
 
 
 @app.route('/download/app')

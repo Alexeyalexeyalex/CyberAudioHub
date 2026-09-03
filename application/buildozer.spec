@@ -22,7 +22,9 @@ android.archs = arm64-v8a,armeabi-v7a
 android.allow_backup = True
 
 # Нужно для уведомления через NotificationCompat
-android.gradle_dependencies = androidx.core:core:1.12.0
+# androidx.media даёт MediaSessionCompat и стиль MediaStyle —
+# без них Android не рисует виджет плеера на экране блокировки
+android.gradle_dependencies = androidx.core:core:1.12.0,androidx.media:media:1.7.0
 android.enable_androidx = True
 
 [buildozer]

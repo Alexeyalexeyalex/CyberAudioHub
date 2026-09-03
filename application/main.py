@@ -369,20 +369,39 @@ class PlayerScreen(Screen):
         self.sound = SoundLoader.load(source)
         if self.sound and autostart:
             self.sound.play()
-            self.app.show_notification(self.album.get('title', ''), name)
+            self.app.show_notification(self.album.get('title', ''), name,
+                                       playing=True, position=0.0,
+                                       duration=self.sound.length or 0.0)
 
     def toggle(self):
         if not self.sound:
             return
-        if self.sound.state == 'play':
+        playing = self.sound.state == 'play'
+        if playing:
             self.sound.stop()
         else:
             self.sound.play()
+        # Виджет в шторке должен показывать то же, что и экран: иначе на
+        # заблокированном телефоне видно «играет», когда звук стоит
+        name = self.track_name()
+        self.app.show_notification(self.album.get('title', ''), name,
+                                   playing=not playing,
+                                   position=self.sound.get_pos() or 0.0,
+                                   duration=self.sound.length or 0.0)
 
     def stop(self):
         if self.sound:
             self.sound.stop()
             self.sound = None
+        self.app.hide_notification()
+
+    def track_name(self):
+        """Название текущей главы — нужно и плееру, и виджету."""
+        tracks = self.album.get('tracks', []) or []
+        if 0 <= self.index < len(tracks):
+            track = tracks[self.index]
+            return track.get('name', '') if isinstance(track, dict) else str(track)
+        return ''
 
     def next_track(self):
         total = len(self.album.get('tracks', []))
@@ -476,9 +495,51 @@ class CyberAudioApp(App):
 
     # --- Уведомление с управлением ---
 
-    def show_notification(self, book, track):
+    # --- Виджет на экране блокировки и в шторке ---
+    #
+    # Обычного уведомления мало: Android рисует полноценный виджет плеера
+    # (обложка, название, кнопки, полоса перемотки) только если приложение
+    # завело MediaSession и повесило на уведомление стиль MediaStyle со
+    # ссылкой на её токен. Без сессии в шторке будет просто строчка текста,
+    # а на заблокированном экране — вообще ничего.
+    #
+    # Всё делается через pyjnius, то есть вызовами в Java прямо отсюда.
+    # На компьютере jnius нет, поэтому любой сбой гасим: виджет — приятное
+    # дополнение, из-за него приложение падать не должно.
+
+    _session = None          # MediaSessionCompat, живёт всё время работы
+    _channel_ready = False
+
+    def _media_session(self):
+        """Заводит MediaSession один раз и дальше отдаёт готовую."""
+        if self._session is not None:
+            return self._session
+        from jnius import autoclass
+        PythonActivity = autoclass('org.kivy.android.PythonActivity')
+        MediaSessionCompat = autoclass('android.support.v4.media.session.MediaSessionCompat')
+        session = MediaSessionCompat(PythonActivity.mActivity, 'CyberAudioHub')
+        session.setActive(True)
+        self._session = session
+        return session
+
+    def _ensure_channel(self, service):
+        """Канал уведомлений. С Android 8 без него уведомление не покажется."""
+        if self._channel_ready:
+            return
+        from jnius import autoclass
+        Channel = autoclass('android.app.NotificationChannel')
+        Manager = autoclass('android.app.NotificationManager')
+        channel = Channel('cah_play', 'Воспроизведение', Manager.IMPORTANCE_LOW)
+        # На заблокированном экране показываем содержимое целиком
+        channel.setLockscreenVisibility(1)          # VISIBILITY_PUBLIC
+        channel.setShowBadge(False)
+        service.createNotificationChannel(channel)
+        self._channel_ready = True
+
+    def show_notification(self, book, track, playing=True,
+                          position=0.0, duration=0.0):
         """
-        Постоянное уведомление в шторке и на экране блокировки.
+        Виджет плеера в шторке и на экране блокировки.
         Работает только на Android; на компьютере молча пропускается.
         """
         try:
@@ -489,23 +550,70 @@ class CyberAudioApp(App):
             PythonActivity = autoclass('org.kivy.android.PythonActivity')
             Context = autoclass('android.content.Context')
             Builder = autoclass('androidx.core.app.NotificationCompat$Builder')
-            Channel = autoclass('android.app.NotificationChannel')
-            Manager = autoclass('android.app.NotificationManager')
+            MediaStyle = autoclass('androidx.media.app.NotificationCompat$MediaStyle')
+            MetaBuilder = autoclass('android.support.v4.media.MediaMetadataCompat$Builder')
+            StateBuilder = autoclass('android.support.v4.media.session.PlaybackStateCompat$Builder')
+            PlaybackState = autoclass('android.support.v4.media.session.PlaybackStateCompat')
 
             activity = PythonActivity.mActivity
             service = activity.getSystemService(Context.NOTIFICATION_SERVICE)
-            channel = Channel('cah_play', 'Воспроизведение', Manager.IMPORTANCE_LOW)
-            service.createNotificationChannel(channel)
+            self._ensure_channel(service)
+            session = self._media_session()
+
+            # Что за книга и глава: отсюда система берёт подписи в виджете
+            meta = MetaBuilder()
+            meta.putString('android.media.metadata.TITLE', track or '')
+            meta.putString('android.media.metadata.ARTIST', book or '')
+            meta.putString('android.media.metadata.ALBUM', book or '')
+            # Длительность в миллисекундах: без неё не появится полоса
+            meta.putLong('android.media.metadata.DURATION',
+                         int(max(0.0, duration) * 1000))
+            session.setMetadata(meta.build())
+
+            # Играем или на паузе — от этого зависит значок в виджете
+            state = StateBuilder()
+            state.setActions(PlaybackState.ACTION_PLAY
+                             | PlaybackState.ACTION_PAUSE
+                             | PlaybackState.ACTION_PLAY_PAUSE
+                             | PlaybackState.ACTION_SKIP_TO_NEXT
+                             | PlaybackState.ACTION_SKIP_TO_PREVIOUS
+                             | PlaybackState.ACTION_SEEK_TO)
+            state.setState(PlaybackState.STATE_PLAYING if playing
+                           else PlaybackState.STATE_PAUSED,
+                           int(max(0.0, position) * 1000), 1.0)
+            session.setPlaybackState(state.build())
+
+            style = MediaStyle()
+            style.setMediaSession(session.getSessionToken())
+            # Какие кнопки оставить в свёрнутом виде шторки
+            style.setShowActionsInCompactView([0, 1, 2])
 
             builder = Builder(activity, 'cah_play')
-            builder.setContentTitle(book)
-            builder.setContentText(track)
-            builder.setOngoing(True)
-            builder.setVisibility(1)  # VISIBILITY_PUBLIC — видно на блокировке
+            builder.setContentTitle(track or '')
+            builder.setContentText(book or '')
             builder.setSmallIcon(activity.getApplicationInfo().icon)
+            builder.setOngoing(bool(playing))
+            builder.setVisibility(1)                 # VISIBILITY_PUBLIC
+            builder.setStyle(style)
+
             service.notify(1, builder.build())
         except Exception:                             # noqa: BLE001
-            # Уведомление — приятное дополнение, из-за него падать нельзя
+            # Виджет — приятное дополнение, из-за него падать нельзя
+            pass
+
+    def hide_notification(self):
+        """Убирает виджет: воспроизведение кончилось или его остановили."""
+        try:
+            from jnius import autoclass
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            Context = autoclass('android.content.Context')
+            activity = PythonActivity.mActivity
+            activity.getSystemService(Context.NOTIFICATION_SERVICE).cancel(1)
+            if self._session is not None:
+                self._session.setActive(False)
+                self._session.release()
+                self._session = None
+        except Exception:                             # noqa: BLE001
             pass
 
     def on_pause(self):

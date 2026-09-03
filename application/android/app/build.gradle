@@ -1,0 +1,48 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.cyberaudio.hub'
+    compileSdk 35
+    // Версию закрепляем: папка SDK лежит в Program Files и защищена
+    // от записи, поэтому докачать другую редакцию сборщик не сможет
+    buildToolsVersion "36.0.0"
+
+    defaultConfig {
+        applicationId "com.cyberaudio.hub"
+        // 26, а не 24: с Android 8 иконка задаётся вектором и выглядит
+        // одинаково на любом экране, без набора png под каждую плотность.
+        // Заодно уходят проверки версии вокруг каналов уведомлений.
+        minSdk 26
+        targetSdk 35
+        // Код версии — целое, растёт с каждым выпуском: именно его
+        // сравнивает приложение, решая, предлагать ли обновление.
+        // Имя версии человек видит в окне обновления.
+        versionCode 3
+        versionName "1.2"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    // Тесты контейнера гоняются на обычной JVM, без телефона и эмулятора
+    testImplementation 'junit:junit:4.13.2'
+    // org.json на JVM — заглушка без реализации, поэтому берём настоящий
+    testImplementation 'org.json:json:20240303'
+    // MediaSessionCompat и стиль MediaStyle: из-за них на экране блокировки
+    // появляется виджет плеера с кнопками, а не просто строка уведомления
+    implementation 'androidx.media:media:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
+}
