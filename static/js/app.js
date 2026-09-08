@@ -277,6 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="album-card__info">
                     <h3 class="album-card__title">${safeName}</h3>
+                    <span class="album-card__kind">${isAlbum ? 'Аудиокнига' : 'Папка с книгами'}</span>
                 </div>
             `;
 

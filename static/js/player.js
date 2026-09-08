@@ -575,8 +575,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 const view = document.getElementById('text-view');
                 if (!view) return;
                 const width = chip ? Math.ceil(chip.getBoundingClientRect().width) : 0;
-                view.style.setProperty('--user-chip-space', width ? `${width + 12}px` : '0px');
+                const space = width ? `${width + 12}px` : '0px';
+                view.style.setProperty('--user-chip-space', space);
+                // Резервируем место для профиля и кнопке возврата: длинный
+                // никнейм не должен заезжать на неё на узком экране.
+                document.body.style.setProperty('--reader-user-space', space);
                 syncToolbarOffset();
+            }
+
+            /** Показывает возврат к началу только после заметной прокрутки. */
+            function updateReaderTopButton() {
+                const button = document.getElementById('reader-scroll-top');
+                if (!button) return;
+                button.hidden = !textMode || window.scrollY < 280;
             }
 
             /**
@@ -914,6 +925,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     stopTicking();
                 }
+                updateReaderTopButton();
                 try {
                     localStorage.setItem('cyberAudioTextMode', on ? '1' : '0');
                 } catch (e) { /* приватный режим */ }
@@ -932,6 +944,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     saveOffset();
                     renderOffset();
                     highlight(true);
+                });
+                document.getElementById('reader-scroll-top').addEventListener('click', () => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                 });
                 loadOffset();
 
@@ -981,6 +996,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // страница выдёргивала бы читателя обратно к текущему слову
                 window.addEventListener('wheel', pauseFollow, { passive: true });
                 window.addEventListener('touchmove', pauseFollow, { passive: true });
+                window.addEventListener('scroll', updateReaderTopButton, { passive: true });
                 document.getElementById('prev-btn').addEventListener('click', prevTrack);
                 document.getElementById('next-btn').addEventListener('click', nextTrack);
                 document.getElementById('rewind-btn').addEventListener('click', () => seek(-5));

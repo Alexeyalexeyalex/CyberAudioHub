@@ -1,0 +1,24 @@
+{% set section = request.path %}
+<a class="skip-link" href="#main-content">К содержимому</a>
+<aside class="app-navigation" aria-label="Разделы CyberAudio">
+    <a class="app-brand" href="/" aria-label="CyberAudio Hub — главная">
+        <span class="brand-symbol" aria-hidden="true"><i class="fas fa-headphones"></i></span>
+        <span>CyberAudio<span class="brand-caption">HUB / АУДИОКНИГИ</span></span>
+    </a>
+    <span class="navigation-label">ВАШЕ ПРОСТРАНСТВО</span>
+    <nav class="navigation-links" aria-label="Основная навигация">
+        {% for href, icon, label in [('/', 'fa-layer-group', 'Медиатека'), ('/achievements', 'fa-award', 'Достижения'), ('/stats', 'fa-chart-simple', 'Статистика'), ('/friends', 'fa-user-group', 'Друзья')] %}
+        <a href="{{ href }}" class="navigation-link"{% if section == href or (href == '/' and section == '/player') %} aria-current="page"{% endif %}>
+            <i class="fas {{ icon }}" aria-hidden="true"></i><span>{{ label }}</span>
+        </a>
+        {% endfor %}
+    </nav>
+    <div class="navigation-footnote">
+        <span class="navigation-pulse" aria-hidden="true"></span>
+        <span>Хорошие истории.<br>На вашей волне.</span>
+    </div>
+</aside>
+<div class="app-topbar">
+    <a class="mobile-brand" href="/" aria-label="CyberAudio — главная"><i class="fas fa-headphones" aria-hidden="true"></i> CyberAudio</a>
+    <span class="topbar-caption">ВАША ЛИЧНАЯ АУДИОТЕКА</span>
+</div>

@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% include '_design_head.html' %}
 </head>
 
 <body>
@@ -18,11 +19,13 @@
 
     {% include '_user_menu.html' %}
 
-    <main class="admin-page stats-page">
+    <main class="admin-page stats-page" id="main-content">
         <a href="/" class="back-button">&lt; НАЗАД К МЕДИАТЕКЕ</a>
 
         <header class="admin-header">
-            <h1>СТАТИСТИКА</h1>
+            <span class="eyebrow">ИСТОРИИ В ЦИФРАХ</span>
+            <h1>Ваш ритм чтения</h1>
+            <p class="page-description">Время с книгами, любимые истории и маленькие рекорды.</p>
         </header>
 
         <!-- Переключатель «я / друг». Заполняется из ответа сервера:

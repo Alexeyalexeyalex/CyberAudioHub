@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% include '_design_head.html' %}
 </head>
 
 <body>
@@ -19,18 +20,31 @@
 
     {% include '_user_menu.html' %}
 
-    <header class="main-header">
-        <h1><a class="home-link" href="/" title="На главную">CYBER_AUDIO_HUB</a></h1>
-    </header>
+    <main class="library-page" id="main-content">
+        <header class="library-hero">
+            <div class="library-hero__copy">
+                <span class="eyebrow"><span aria-hidden="true"></span> ВКЛЮЧИТЕ СВОЮ ИСТОРИЮ</span>
+                <h1>Мир за пределами<br><em>обычного.</em></h1>
+                <p>Любимые книги, ваш ритм. Выберите историю<br class="desktop-break"> и погрузитесь в неё с первой главы.</p>
+                <a class="hero-link" href="#library-catalog">Открыть коллекцию <i class="fas fa-arrow-down" aria-hidden="true"></i></a>
+            </div>
+            <div class="audio-orbit" aria-hidden="true">
+                <div class="audio-orbit__ring"></div>
+                <div class="audio-orbit__disc"><i class="fas fa-headphones"></i></div>
+                <span class="audio-orbit__caption">НА ВАШЕЙ ВОЛНЕ</span>
+            </div>
+        </header>
 
-    <main>
-        <p class="subtitle">👾Ваша коллекция из будущего</p>
+        <div class="library-heading" id="library-catalog">
+            <div><span class="eyebrow">ВАША КОЛЛЕКЦИЯ</span><h2>Медиатека</h2></div>
+            <span class="library-heading__hint">Всё для следующего погружения</span>
+        </div>
 
         <div class="library-controls">
             <div class="library-search">
                 <i class="fas fa-magnifying-glass"></i>
                 <input type="text" id="library-search" placeholder="Поиск по медиатеке"
-                    autocomplete="off" maxlength="64">
+                    aria-label="Поиск по медиатеке" autocomplete="off" maxlength="64">
                 <button type="button" class="search-clear" id="search-clear"
                     title="Очистить" hidden><i class="fas fa-xmark"></i></button>
             </div>
@@ -60,7 +74,7 @@
             </div>
         </section>
 
-        <nav class="breadcrumbs" id="breadcrumbs-container"></nav>
+        <nav class="breadcrumbs" id="breadcrumbs-container" aria-label="Путь по медиатеке"></nav>
 
         <section class="album-selection">
             <div class="album-grid" id="album-grid">
@@ -73,7 +87,7 @@
     </main>
 
     <footer class="main-footer">
-        <p>© 2077 CyberAudio Corp.</p>
+        <p>CyberAudio Hub <span aria-hidden="true">/</span> Ваши книги. Ваша вселенная.</p>
     </footer>
 
     <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
