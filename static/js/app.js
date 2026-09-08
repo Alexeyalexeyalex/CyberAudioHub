@@ -269,8 +269,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             card.innerHTML = `
                 <div class="album-card__image-container">
-                    <img src="${item.cover}" alt="" aria-hidden="true" class="album-card__image-blur" onerror="this.remove();">
-                    <img src="${item.cover}" alt="Обложка для ${safeName}" class="album-card__image" onerror="this.onerror=null;this.src='/static/assets/default_cover.png';">
+                    <img src="${item.cover}" alt="" aria-hidden="true" class="album-card__image-blur" loading="lazy" decoding="async" onerror="this.remove();">
+                    <img src="${item.cover}" alt="Обложка для ${safeName}" class="album-card__image" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='/static/assets/default_cover.png';">
                     <i class="fas ${iconClass} album-card__type-icon"></i>
                     ${item.has_text ? `<i class="fas fa-align-left album-card__text-icon"
                         title="Есть текстовая версия" aria-label="Есть текстовая версия"></i>` : ''}
@@ -526,8 +526,8 @@ document.addEventListener('DOMContentLoaded', () => {
             card.dataset.folderId = folder.id;
             card.innerHTML = `
                 <div class="album-card__image-container">
-                    <img src="${cover}" alt="" aria-hidden="true" class="album-card__image-blur" onerror="this.remove();">
-                    <img src="${cover}" alt="Папка ${escapeHtml(folder.name)}" class="album-card__image" onerror="this.onerror=null;this.src='/static/assets/default_cover.png';">
+                    <img src="${cover}" alt="" aria-hidden="true" class="album-card__image-blur" loading="lazy" decoding="async" onerror="this.remove();">
+                    <img src="${cover}" alt="Папка ${escapeHtml(folder.name)}" class="album-card__image" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='/static/assets/default_cover.png';">
                     <i class="fas fa-folder-open album-card__type-icon"></i>
                     <span class="album-card__folder-count">${folder.items.length}</span>
                 </div>

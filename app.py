@@ -1,6 +1,7 @@
 # app.py
 import os
 import re
+import hashlib
 import sqlite3
 import secrets
 import functools
@@ -150,6 +151,81 @@ def media_file():
     return send_file(disk, conditional=True)
 
 
+# --- Обложки ---
+#
+# Оригиналы обложек весят мегабайты: в медиатеке лежат картинки 3000x2097,
+# а на полке они показываются квадратиком в 280 точек. Браузер честно качал
+# и разжимал каждую целиком — на страницу выходило под десять мегабайт,
+# и открывалась она секунды. Поэтому отдаём уменьшенные копии.
+#
+# Pillow не обязателен: без него всё работает по-старому, просто без
+# экономии. Так же устроены и движки распознавания речи — не поставил,
+# значит одной возможностью меньше, а не сломанный сайт.
+THUMBS = os.path.join(app.root_path, 'data', 'thumbs')
+THUMB_SIZE = 480          # с запасом на экраны с удвоенной плотностью
+THUMB_QUALITY = 82
+
+try:
+    from PIL import Image
+    THUMBS_READY = True
+except ImportError:
+    Image = None
+    THUMBS_READY = False
+
+
+def thumb_url(virtual_path):
+    """Ссылка на уменьшенную обложку. Без Pillow — на оригинал."""
+    if not THUMBS_READY:
+        return media_url(virtual_path)
+    return url_for('cover_file', path=virtual_path)
+
+
+def build_thumb(disk, target):
+    """
+    Делает уменьшенную копию. Возвращает False, если картинку не прочитать —
+    тогда отдадим оригинал, а не пустоту.
+    """
+    try:
+        with Image.open(disk) as picture:
+            picture = picture.convert('RGB')
+            picture.thumbnail((THUMB_SIZE, THUMB_SIZE), Image.LANCZOS)
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            # Пишем через временный файл: два одновременных запроса не
+            # должны оставить недописанную картинку в кеше
+            temporary = target + f'.{os.getpid()}.tmp'
+            picture.save(temporary, 'JPEG', quality=THUMB_QUALITY, optimize=True)
+            os.replace(temporary, target)
+        return True
+    except Exception:
+        return False
+
+
+@app.route('/cover')
+def cover_file():
+    """
+    Уменьшенная обложка. Имя в кеше включает время правки файла, поэтому
+    заменённая обложка сразу считается новой, а старую можно смело держать
+    в кеше браузера хоть год.
+    """
+    virtual = (request.args.get('path') or '').strip('/')
+    disk = resolve_disk(virtual)
+    if not os.path.isfile(disk):
+        abort(404)
+    if not THUMBS_READY:
+        return send_file(disk, conditional=True)
+
+    stamp = int(os.path.getmtime(disk))
+    key = hashlib.sha1(f'{virtual}|{stamp}|{THUMB_SIZE}'.encode('utf-8')).hexdigest()
+    target = os.path.join(THUMBS, key[:2], key + '.jpg')
+
+    if not os.path.isfile(target) and not build_thumb(disk, target):
+        return send_file(disk, conditional=True)
+
+    response = send_file(target, conditional=True, mimetype='image/jpeg')
+    response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    return response
+
+
 DOWNLOADS_KEY = 'downloads_enabled'
 
 
@@ -236,7 +312,7 @@ def find_cover(directory_path, relative_path):
     for cover_name in COVER_NAMES:
         if os.path.isfile(os.path.join(directory_path, cover_name)):
             joined = f'{relative_path}/{cover_name}' if relative_path else cover_name
-            return media_url(joined.replace('\\', '/'))
+            return thumb_url(joined.replace('\\', '/'))
     return None
 
 
@@ -1110,12 +1186,26 @@ def folder_cover_url(filename):
 
 @app.route('/folder-cover/<path:filename>')
 def folder_cover_file(filename):
-    """Отдаёт загруженную картинку папки."""
+    """
+    Отдаёт загруженную картинку папки — тоже уменьшенной. Человек грузит
+    сюда снимок с телефона на несколько мегабайт, а видит его квадратиком
+    в полсотни точек.
+    """
     safe = os.path.basename(filename)          # никаких переходов по каталогам
     disk = os.path.join(FOLDER_COVERS, safe)
     if not os.path.isfile(disk):
         abort(404)
-    return send_file(disk, conditional=True)
+    if not THUMBS_READY:
+        return send_file(disk, conditional=True)
+
+    stamp = int(os.path.getmtime(disk))
+    key = hashlib.sha1(f'folder|{safe}|{stamp}|{THUMB_SIZE}'.encode('utf-8')).hexdigest()
+    target = os.path.join(THUMBS, key[:2], key + '.jpg')
+    if not os.path.isfile(target) and not build_thumb(disk, target):
+        return send_file(disk, conditional=True)
+    response = send_file(target, conditional=True, mimetype='image/jpeg')
+    response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    return response
 
 
 def drop_cover_file(filename):

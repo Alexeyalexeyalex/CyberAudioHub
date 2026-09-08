@@ -141,14 +141,40 @@ public class AchievementsActivity extends AppCompatActivity {
         String[] look = look(item.optString("rarity"));
         int accent = Color.parseColor(look[2]);
 
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.VERTICAL);
-        row.setBackground(Ui.card(this, 0));
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setBackground(Ui.card(this, 0));
         int pad = Ui.dp(this, 14);
-        row.setPadding(pad, pad, pad, pad);
+        card.setPadding(pad, pad, pad, pad);
         // Незаработанное приглушаем целиком: так полученные видно сразу,
         // а закрытые остаются читаемыми — за них ещё можно взяться
-        row.setAlpha(earned ? 1f : 0.55f);
+        card.setAlpha(earned ? 1f : 0.55f);
+
+        // Значок достижения слева. Он и отличает их друг от друга с одного
+        // взгляда — без картинки список превращался в столбик одинаковых
+        // подписей. Рамка цвета редкости заменяет ту, что на сайте.
+        android.widget.ImageView badge = new android.widget.ImageView(this);
+        badge.setImageResource(R.drawable.cover_placeholder);
+        badge.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+        android.graphics.drawable.GradientDrawable frame =
+                new android.graphics.drawable.GradientDrawable();
+        frame.setColor(Ui.DARK);
+        frame.setCornerRadius(Ui.dp(this, 10));
+        frame.setStroke(Ui.dp(this, 2), accent);
+        badge.setBackground(frame);
+        badge.setClipToOutline(true);
+        int side = Ui.dp(this, 56);
+        LinearLayout.LayoutParams badgeParams =
+                new LinearLayout.LayoutParams(side, side);
+        badgeParams.rightMargin = Ui.dp(this, 12);
+        card.addView(badge, badgeParams);
+        String image = item.optString("image");
+        if (!image.isEmpty()) Covers.into(badge, api, image, getCacheDir());
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.VERTICAL);
+        card.addView(row, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView title = Ui.label(this, item.optString("title"), accent, 16);
         title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
@@ -174,8 +200,8 @@ public class AchievementsActivity extends AppCompatActivity {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
         params.bottomMargin = Ui.dp(this, 8);
-        row.setLayoutParams(params);
-        return row;
+        card.setLayoutParams(params);
+        return card;
     }
 
     /** «За что» — той же фразой, что на сайте. */

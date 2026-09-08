@@ -31,8 +31,11 @@ public final class History {
     private static long lastTry;
 
     private final SharedPreferences prefs;
+    /** Для уведомлений о достижениях: держим приложение, а не экран. */
+    private final Context app;
 
     public History(Context context) {
+        app = context.getApplicationContext();
         prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
@@ -154,8 +157,13 @@ public final class History {
                         continue;
                     }
                     try {
-                        api.claimAchievements(mark.substring(0, cut),
+                        JSONObject answer = api.claimAchievements(
+                                mark.substring(0, cut),
                                 Integer.parseInt(mark.substring(cut + 1)));
+                        // Что засчитано — решает сервер. Если что-то выдал,
+                        // человек должен об этом узнать, даже когда
+                        // приложение свёрнуто: достижение — событие
+                        Awards.show(app, answer.optJSONArray("granted"));
                     } catch (Exception e) {
                         if (!gone(e)) {
                             left.put(mark);

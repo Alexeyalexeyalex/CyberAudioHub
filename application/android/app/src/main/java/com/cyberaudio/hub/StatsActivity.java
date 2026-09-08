@@ -322,6 +322,12 @@ public class StatsActivity extends AppCompatActivity {
             line.setStrokeWidth(Math.max(1, Ui.dp(context, 1) / 2f));
         }
 
+        /** Насколько подпись шире своей ячейки — на столько отступаем от края. */
+        private float overhang(String label, float slot) {
+            if (label == null || label.isEmpty()) return 0;
+            return Math.max(0, text.measureText(label) / 2 - slot / 2);
+        }
+
         @Override
         protected void onDraw(Canvas canvas) {
             if (values.length == 0) return;
@@ -329,13 +335,35 @@ public class StatsActivity extends AppCompatActivity {
             for (int value : values) max = Math.max(max, value);
 
             float bottom = getHeight() - Ui.dp(getContext(), 16);
-            float width = getWidth() / (float) values.length;
-            float thickness = Math.max(2f, width * 0.6f);
+
+            /*
+             * Поля под крайние подписи.
+             *
+             * За месяц столбик выходит уже 33 точек, а дата «03.09» занимает
+             * все семьдесят. Раньше такая подпись не влезала и её поджимали
+             * к краю графика — из-за чего она вставала не под своим столбиком,
+             * а на полстолбика в сторону. Теперь наоборот: сдвигаем сами
+             * столбики внутрь ровно настолько, чтобы дата встала точно под
+             * своей. Второй проход — потому что от отступа ячейка становится
+             * уже, и подпись начинает выступать чуть сильнее.
+             */
+            String first = labels.length > 0 ? labels[0] : "";
+            String last = labels.length > 0 ? labels[labels.length - 1] : "";
+            float slot = getWidth() / (float) values.length;
+            float padLeft = 0;
+            float padRight = 0;
+            for (int pass = 0; pass < 2; pass++) {
+                padLeft = overhang(first, slot);
+                padRight = overhang(last, slot);
+                slot = (getWidth() - padLeft - padRight) / values.length;
+            }
+
+            float thickness = Math.max(2f, slot * 0.6f);
             float radius = Math.min(thickness / 2f, Ui.dp(getContext(), 3));
 
             canvas.drawLine(0, bottom, getWidth(), bottom, line);
             for (int i = 0; i < values.length; i++) {
-                float centre = width * (i + 0.5f);
+                float centre = padLeft + slot * (i + 0.5f);
                 float height = bottom * values[i] / (float) max;
                 // Нулю тоже оставляем след: пустой день должен читаться
                 // как день без чтения, а не как обрыв графика
@@ -343,12 +371,10 @@ public class StatsActivity extends AppCompatActivity {
                 canvas.drawRoundRect(centre - thickness / 2, top,
                         centre + thickness / 2, bottom, radius, radius, bar);
                 if (i < labels.length && !labels[i].isEmpty()) {
-                    float wide = text.measureText(labels[i]);
-                    // Подпись у крайнего столбика вылезала за экран и обрезалась
-                    // до «O3.0» — прижимаем её к краю графика
-                    float x = Math.max(0, Math.min(centre - wide / 2,
-                            getWidth() - wide));
-                    canvas.drawText(labels[i], x,
+                    // Поля уже посчитаны так, что подпись помещается целиком,
+                    // поэтому просто ставим её по центру столбика
+                    canvas.drawText(labels[i],
+                            centre - text.measureText(labels[i]) / 2,
                             getHeight() - Ui.dp(getContext(), 3), text);
                 }
             }

@@ -108,25 +108,44 @@ body {
         radial-gradient(125% 90% at 50% -10%, transparent 42%, rgba(0, 0, 0, 0.6) 100%),
         radial-gradient(58% 46% at 10% 6%, color-mix(in srgb, var(--primary-color) 15%, transparent), transparent 68%),
         radial-gradient(52% 44% at 90% 20%, color-mix(in srgb, var(--secondary-color) 13%, transparent), transparent 68%),
-        linear-gradient(rgba(13, 4, 26, 0.93), rgba(13, 4, 26, 0.93)),
-        radial-gradient(var(--primary-color) 0.5px, transparent 0.5px),
-        radial-gradient(var(--secondary-color) 0.5px, transparent 0.5px);
-    background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 22px 22px, 22px 22px;
-    background-position: 0 0, 0 0, 0 0, 0 0, -11px -11px, 0 0;
-    animation: grid-drift 28s var(--ease-soft) infinite;
+        linear-gradient(rgba(13, 4, 26, 0.93), rgba(13, 4, 26, 0.93));
+    background-size: 100% 100%;
 }
 
-/* Двигается только сетка: раньше дёргались все слои разом, и на слабой
-   машине это читалось как подтормаживание страницы, а не как эффект. */
+/* Сетка вынесена отдельным слоем и ездит через transform.
+
+   Раньше анимировался background-position прямо на слое, растянутом на
+   весь экран, — и браузер перерисовывал весь экран каждый кадр, всё
+   время, на любой странице. Отсюда и ощущение, что сайт «потяжелел»:
+   грузился он не дольше, а постоянно занимал собой отрисовку.
+   transform двигает уже готовую картинку силами композитора.
+
+   Прозрачность повторяет прежний вид: точки лежали ПОД затемняющим слоем
+   и оставались едва заметным намёком, а не рябью в глазах. */
+.background-effects::after {
+    content: '';
+    position: absolute;
+    /* С запасом по краям: сдвиг не должен открывать пустую полосу */
+    inset: -24px;
+    opacity: 0.07;
+    background-image:
+        radial-gradient(var(--primary-color) 0.5px, transparent 0.5px),
+        radial-gradient(var(--secondary-color) 0.5px, transparent 0.5px);
+    background-size: 22px 22px, 22px 22px;
+    background-position: -11px -11px, 0 0;
+    animation: grid-drift 28s var(--ease-soft) infinite;
+    will-change: transform;
+}
+
 @keyframes grid-drift {
 
     0%,
     100% {
-        background-position: 0 0, 0 0, 0 0, 0 0, -11px -11px, 0 0;
+        transform: translate3d(0, 0, 0);
     }
 
     50% {
-        background-position: 0 0, 0 0, 0 0, 0 0, -5px -17px, 6px -6px;
+        transform: translate3d(6px, -6px, 0);
     }
 }
 

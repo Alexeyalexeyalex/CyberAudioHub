@@ -41,15 +41,27 @@ public final class Transcripts {
         final double[] until;
         /** Из какой главы слово. В режиме одной главы везде одно и то же. */
         final int[] track;
+        /** Заголовки глав: {начало, конец, номер главы}. Пусто вне режима книги. */
+        final int[][] heads;
 
         Timeline(String text, int[] from, int[] to,
-                 double[] since, double[] until, int[] track) {
+                 double[] since, double[] until, int[] track, int[][] heads) {
             this.text = text;
             this.from = from;
             this.to = to;
             this.since = since;
             this.until = until;
             this.track = track;
+            this.heads = heads;
+        }
+
+        public int headings() {
+            return heads.length;
+        }
+
+        /** Границы заголовка и номер его главы: {начало, конец, глава}. */
+        public int[] heading(int i) {
+            return heads[i];
         }
 
         public boolean isEmpty() {
@@ -119,12 +131,18 @@ public final class Transcripts {
         java.util.List<int[]> spans = new java.util.ArrayList<>();
         java.util.List<double[]> times = new java.util.ArrayList<>();
         java.util.List<Integer> tracks = new java.util.ArrayList<>();
+        java.util.List<int[]> heads = new java.util.ArrayList<>();
 
         for (int c = 0; c < chapters.length; c++) {
             JSONArray segments = chapters[c];
             int chapter = first + c;
             if (titles.length > c && !titles[c].isEmpty()) {
-                text.append(titles[c]).append("\n\n");
+                // Запоминаем, где стоит заголовок: по нему экран покажет,
+                // какая глава звучит сейчас, а какие — соседние
+                int head = text.length();
+                text.append(titles[c]);
+                heads.add(new int[]{head, text.length(), chapter});
+                text.append("\n\n");
             }
             for (int i = 0; segments != null && i < segments.length(); i++) {
                 JSONObject segment = segments.optJSONObject(i);
@@ -167,7 +185,8 @@ public final class Transcripts {
             until[i] = times.get(i)[1];
             track[i] = tracks.get(i);
         }
-        return new Timeline(text.toString().trim(), from, to, since, until, track);
+        return new Timeline(text.toString().trim(), from, to, since, until,
+                track, heads.toArray(new int[0][]));
     }
 
     private Transcripts() {

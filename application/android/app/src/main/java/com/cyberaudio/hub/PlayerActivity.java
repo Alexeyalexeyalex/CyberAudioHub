@@ -27,7 +27,8 @@ import java.util.concurrent.Executors;
  * Сам звук играет служба, а не этот экран, — иначе воспроизведение обрывалось
  * бы при сворачивании. Экран только показывает её состояние и шлёт команды.
  */
-public class PlayerActivity extends AppCompatActivity implements PlaybackService.Listener {
+public class PlayerActivity extends AppCompatActivity
+        implements PlaybackService.Listener, Downloads.Watcher {
 
     public static final String EXTRA_PATH = "path";
     public static final String EXTRA_TITLE = "title";
@@ -60,6 +61,8 @@ public class PlayerActivity extends AppCompatActivity implements PlaybackService
     private ScrollView outerScroll;
     /** Текст развёрнут на весь экран: сверху только управление. */
     private boolean fullText;
+    /** Пока включён, системная «назад» сворачивает текст, а не закрывает книгу. */
+    private androidx.activity.OnBackPressedCallback backToPlayer;
     private android.widget.ImageButton playIcon;
     private Button downloadButton;
     private LinearLayout chapters;
@@ -79,6 +82,10 @@ public class PlayerActivity extends AppCompatActivity implements PlaybackService
     private boolean showingText;
     private int[] litWord;               // что подсвечено сейчас
     private int litEdge = -1;            // докуда погашено прочитанное
+
+    /** Звучащая глава: тот же --neon-green, что у .is-current на сайте. */
+    private static final int CURRENT_CHAPTER =
+            android.graphics.Color.parseColor("#00FF9D");
 
     /** Настройки те же, что хранит сайт в localStorage. */
     private static final String WHOLE_KEY = "transcript_whole";
@@ -113,16 +120,17 @@ public class PlayerActivity extends AppCompatActivity implements PlaybackService
         }
 
         buildUi();
+        Downloads.watch(this);
         // Из полного экрана системная «назад» должна возвращать к плееру,
         // а не выбрасывать из книги целиком. Через диспетчер, а не
         // onBackPressed(): тот объявлен устаревшим с Android 13
-        getOnBackPressedDispatcher().addCallback(this,
-                new androidx.activity.OnBackPressedCallback(false) {
-                    @Override
-                    public void handleOnBackPressed() {
-                        setFullText(false);
-                    }
-                });
+        backToPlayer = new androidx.activity.OnBackPressedCallback(false) {
+            @Override
+            public void handleOnBackPressed() {
+                setFullText(false);
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this, backToPlayer);
         askNotificationPermission();
 
         PlaybackService.start(this);
@@ -176,10 +184,15 @@ public class PlayerActivity extends AppCompatActivity implements PlaybackService
         controls = Ui.row(this);
         controls.setGravity(android.view.Gravity.CENTER);
 
+        // Кнопки разведены по всей ширине: пальцем в узком ряду легко
+        // промахнуться мимо перемотки и попасть в соседнюю главу.
+        // Распорки между кнопками растягиваются, сами кнопки — нет.
         controls.addView(playerButton(R.drawable.ic_prev, Ui.PRIMARY, 48,
                 "Предыдущая глава", s -> s.previous()));
+        controls.addView(spacer());
         controls.addView(playerButton(R.drawable.ic_rewind, Ui.PRIMARY, 48,
                 "На 5 секунд назад", s -> s.seekBy(-PlaybackService.SEEK_STEP)));
+        controls.addView(spacer());
 
         // Единственная заливная кнопка в ряду: главное действие должно
         // читаться сразу, остальные — просто значки
@@ -191,8 +204,10 @@ public class PlayerActivity extends AppCompatActivity implements PlaybackService
         }));
         controls.addView(playIcon);
 
+        controls.addView(spacer());
         controls.addView(playerButton(R.drawable.ic_forward, Ui.PRIMARY, 48,
                 "На 5 секунд вперёд", s -> s.seekBy(PlaybackService.SEEK_STEP)));
+        controls.addView(spacer());
         controls.addView(playerButton(R.drawable.ic_next, Ui.PRIMARY, 48,
                 "Следующая глава", s -> s.next()));
         Ui.add(box, controls, 16);
@@ -242,6 +257,11 @@ public class PlayerActivity extends AppCompatActivity implements PlaybackService
         followBox.setOnCheckedChangeListener((v, on) -> {
             following = on;
             settings.edit().putBoolean(FOLLOW_KEY, on).apply();
+            // Выключили — возвращаем текст в исходный вид, как на сайте:
+            // ни подсветки, ни затемнения. Раньше подсветка продолжала
+            // ползти по строкам, и галочка выглядела сломанной
+            if (!on) clearHighlight();
+            else if (showingText) highlight();
         });
         textToolbar.addView(wholeBox);
         LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(
@@ -290,11 +310,10 @@ public class PlayerActivity extends AppCompatActivity implements PlaybackService
             Ui.add(box, folderButton, 10);
         }
 
-        downloadButton = Ui.button(this,
-                store.isDownloaded(path) ? "Удалить с телефона" : "Скачать на телефон",
-                Ui.PRIMARY);
+        downloadButton = Ui.button(this, "Скачать на телефон", Ui.PRIMARY);
         downloadButton.setOnClickListener(v -> toggleDownload());
         if (!offline) Ui.add(box, downloadButton, 16);
+        refreshDownloadButton();
 
         chapters = new LinearLayout(this);
         chapters.setOrientation(LinearLayout.VERTICAL);
@@ -319,6 +338,9 @@ public class PlayerActivity extends AppCompatActivity implements PlaybackService
      */
     private void setFullText(boolean full) {
         fullText = full;
+        // Перехват держим включённым ровно пока текст развёрнут: иначе
+        // «назад» на обычном экране плеера перестала бы закрывать книгу
+        if (backToPlayer != null) backToPlayer.setEnabled(full);
         if (full && !showingText) toggleText();
 
         int hidden = full ? View.GONE : View.VISIBLE;
@@ -352,15 +374,19 @@ public class PlayerActivity extends AppCompatActivity implements PlaybackService
 
 
 
+    /** Растяжимая пустота между кнопками: она и разводит их по краям. */
+    private View spacer() {
+        View gap = new View(this);
+        gap.setLayoutParams(new LinearLayout.LayoutParams(0, 1, 1f));
+        return gap;
+    }
+
     /** Круглая кнопка плеера с уже привязанным действием. */
     private android.widget.ImageButton playerButton(int icon, int accent, int size,
                                                     String description, Action action) {
         android.widget.ImageButton view =
                 Ui.roundButton(this, icon, accent, size, description);
         view.setOnClickListener(v -> withService(action));
-        LinearLayout.LayoutParams params =
-                (LinearLayout.LayoutParams) view.getLayoutParams();
-        params.setMargins(Ui.dp(this, 4), 0, Ui.dp(this, 4), 0);
         return view;
     }
 
@@ -462,7 +488,7 @@ public class PlayerActivity extends AppCompatActivity implements PlaybackService
                     return;
                 }
                 timeline = ready;
-                textView.setText(ready.text);
+                textView.setText(marked(ready.text, -1, null));
             });
         });
     }
@@ -483,9 +509,18 @@ public class PlayerActivity extends AppCompatActivity implements PlaybackService
         });
     }
 
+    /** Убирает всю разметку: текст читают глазами сами. */
+    private void clearHighlight() {
+        litWord = null;
+        litEdge = -1;
+        if (timeline != null) textView.setText(marked(timeline.text, -1, null));
+    }
+
     private void highlight() {
         PlaybackService service = PlaybackService.get();
         if (service == null || timeline == null) return;
+        // Без галочки текст стоит нетронутым — ни подсветки, ни затемнения
+        if (!following) return;
         ensureTimeline(service.index());
         if (timeline == null) return;
 
@@ -497,25 +532,52 @@ public class PlayerActivity extends AppCompatActivity implements PlaybackService
         litWord = word;
         litEdge = edge;
 
-        android.text.SpannableString marked =
-                new android.text.SpannableString(timeline.text);
+        textView.setText(marked(timeline.text, edge, word));
+        if (word != null) scrollToWord(word[0]);
+    }
+
+    /**
+     * Собирает размеченный текст: погашенное прочитанное, подсвеченное
+     * слово и — в режиме всей книги — выделение глав, как на сайте.
+     *
+     * edge < 0 и word == null означают «без разметки»: так текст выглядит
+     * с выключенной галочкой слежения.
+     */
+    private CharSequence marked(String source, int edge, int[] word) {
+        android.text.SpannableString out = new android.text.SpannableString(source);
+
         // Прочитанное гаснет — как .word.is-spoken на сайте
         if (edge > 0) {
-            marked.setSpan(new android.text.style.ForegroundColorSpan(Ui.SPOKEN),
-                    0, Math.min(edge, marked.length()),
+            out.setSpan(new android.text.style.ForegroundColorSpan(Ui.SPOKEN),
+                    0, Math.min(edge, out.length()),
                     android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
+
+        // Заголовки глав: звучащая — зелёная, как .is-current на сайте,
+        // остальные приглушены. Без этого в сплошном тексте всей книги
+        // невозможно понять, где ты находишься
+        if (wholeBook && timeline != null) {
+            PlaybackService service = PlaybackService.get();
+            int now = service == null ? -1 : service.index();
+            for (int i = 0; i < timeline.headings(); i++) {
+                int[] span = timeline.heading(i);
+                int colour = span[2] == now ? CURRENT_CHAPTER : Ui.SECONDARY;
+                out.setSpan(new android.text.style.ForegroundColorSpan(colour),
+                        span[0], span[1], android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                out.setSpan(new android.text.style.StyleSpan(
+                                android.graphics.Typeface.BOLD),
+                        span[0], span[1], android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
+        }
+
         if (word != null) {
-            marked.setSpan(new android.text.style.BackgroundColorSpan(
+            out.setSpan(new android.text.style.BackgroundColorSpan(
                             android.graphics.Color.argb(70, 0, 242, 255)),
                     word[0], word[1], android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            marked.setSpan(new android.text.style.ForegroundColorSpan(Ui.PRIMARY),
+            out.setSpan(new android.text.style.ForegroundColorSpan(Ui.PRIMARY),
                     word[0], word[1], android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
-        textView.setText(marked);
-        // Без галочки «следить» текст стоит на месте: его читают глазами
-        // сами, и прыгающая прокрутка этому только мешает
-        if (following && word != null) scrollToWord(word[0]);
+        return out;
     }
 
     /** Держим подсвеченное слово в поле зрения, не дёргая экран зря. */
@@ -670,67 +732,58 @@ public class PlayerActivity extends AppCompatActivity implements PlaybackService
     // --- Скачивание ---
 
     private void toggleDownload() {
+        if (Downloads.busy(path)) return;          // уже качается
         if (store.isDownloaded(path)) {
             store.forget(path);
-            downloadButton.setText("Скачать на телефон");
+            Downloads.forget(path);
             // Текст ушёл вместе с книгой — следить больше не за чем
             if (showingText) toggleText();
             textButton.setText("Текст — после скачивания");
             textButton.setEnabled(false);
             textButton.setAlpha(0.5f);
+            refreshDownloadButton();
             return;
         }
-        downloadButton.setEnabled(false);
-        downloadButton.setText("Скачиваю...");
-        final String[] toGet = urls.clone();
-        final String[] withNames = names.clone();
+        Downloads.start(this, api, store, path, title, cover,
+                urls.clone(), names.clone());
+        refreshDownloadButton();
+    }
 
-        pool.execute(() -> {
-            String error = null;
-            try {
-                File dir = store.bookDir(path);
-                if (!dir.exists() && !dir.mkdirs()) {
-                    throw new java.io.IOException("Не удалось создать папку");
-                }
-                byte[] key = Store.containerKey();
-                for (int i = 0; i < toGet.length; i++) {
-                    final int number = i + 1;
-                    runOnUiThread(() -> downloadButton.setText(
-                            "Скачиваю " + number + " из " + toGet.length));
-                    HttpURLConnection connection = api.openTrack(toGet[i]);
-                    try (InputStream in = connection.getInputStream()) {
-                        JSONObject meta = new JSONObject()
-                                .put("book", title)
-                                .put("track", withNames[i])
-                                .put("index", i);
-                        Container.pack(in, store.trackFile(path, i), key, meta);
-                    } finally {
-                        connection.disconnect();
-                    }
-                    // Текст весит килобайты против десятков мегабайт звука,
-                    // поэтому качаем его сразу: без него офлайн-чтение
-                    // с подсветкой было бы невозможно
-                    Transcripts.save(api, store, path, i);
-                }
-                List<String> list = new ArrayList<>();
-                for (String name : withNames) list.add(name);
-                store.remember(path, title, list, cover);
-            } catch (Exception e) {
-                error = e.getMessage();
-            }
-            String finalError = error;
-            runOnUiThread(() -> {
-                downloadButton.setEnabled(true);
-                downloadButton.setText(finalError == null
-                        ? "Удалить с телефона" : "Не вышло: " + finalError);
-                if (finalError == null) {
-                    handOverBook();
-                    textButton.setText("Показать текст");
-                    textButton.setEnabled(true);
-                    textButton.setAlpha(1f);
-                }
-            });
-        });
+    /**
+     * Подпись кнопки собирается из состояния загрузчика, а не хранится в
+     * экране. Экран пересобирается при каждом возврате, а книга качается
+     * минутами — раньше после выхода и возврата кнопка снова предлагала
+     * скачать уже качающуюся книгу.
+     */
+    private void refreshDownloadButton() {
+        if (downloadButton == null) return;
+        Downloads.Progress progress = Downloads.progress(path);
+        if (progress != null && progress.running()) {
+            downloadButton.setEnabled(false);
+            downloadButton.setText("Скачиваю " + (progress.done + 1)
+                    + " из " + progress.total);
+            return;
+        }
+        downloadButton.setEnabled(true);
+        if (progress != null && progress.error != null) {
+            downloadButton.setText("Не вышло: " + progress.error);
+            return;
+        }
+        downloadButton.setText(store.isDownloaded(path)
+                ? "Удалить с телефона" : "Скачать на телефон");
+    }
+
+    @Override
+    public void onDownloadChanged(String which) {
+        if (!path.equals(which)) return;
+        refreshDownloadButton();
+        if (!store.isDownloaded(path)) return;
+        // Книга доехала: звук переключаем на файлы с телефона, а текст
+        // теперь есть — открываем и его
+        handOverBook();
+        textButton.setText("Показать текст");
+        textButton.setEnabled(true);
+        textButton.setAlpha(1f);
     }
 
     // --- Состояние ---
@@ -777,13 +830,48 @@ public class PlayerActivity extends AppCompatActivity implements PlaybackService
         history.flush(api, false);
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Пока экрана не было, книга могла докачаться
+        refreshDownloadButton();
+    }
+
     private interface Action {
         void run(PlaybackService service);
     }
 
+    /**
+     * Выполняет действие над службой, подняв её, если она успела уйти.
+     *
+     * Дослушав последнюю главу, служба останавливает сама себя — и экран
+     * плеера оставался живым только на вид: кнопки и список глав молчали,
+     * потому что службы, которой они шлют команды, больше не было.
+     */
     private void withService(Action action) {
         PlaybackService service = PlaybackService.get();
-        if (service != null) action.run(service);
+        if (service != null) {
+            action.run(service);
+            return;
+        }
+        PlaybackService.start(this);
+        revive(20, action);
+    }
+
+    private void revive(int attemptsLeft, Action action) {
+        PlaybackService service = PlaybackService.get();
+        if (service != null) {
+            // Новая служба про книгу ничего не знает — отдаём заново
+            handOverBook();
+            action.run(service);
+            return;
+        }
+        if (attemptsLeft <= 0) {
+            nowPlaying.setText("Не удалось запустить проигрывание");
+            return;
+        }
+        new android.os.Handler(getMainLooper())
+                .postDelayed(() -> revive(attemptsLeft - 1, action), 100);
     }
 
     private void askNotificationPermission() {
@@ -803,6 +891,7 @@ public class PlayerActivity extends AppCompatActivity implements PlaybackService
 
     @Override
     protected void onDestroy() {
+        Downloads.unwatch(this);
         // Уходя с экрана, пробуем отдать накопленное сразу: ждать
         // следующего запуска ради уже готовой записи незачем
         history.flush(api, true);

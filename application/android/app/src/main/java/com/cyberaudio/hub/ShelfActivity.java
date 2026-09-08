@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
-import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -49,6 +48,11 @@ public class ShelfActivity extends AppCompatActivity {
     private Button upButton;
     private android.widget.EditText searchField;
     private android.widget.Spinner sortSelect;
+    /** Разделы, которым нужен сервер: без него их прячем. */
+    private LinearLayout onlineTools;
+    private LinearLayout upButtonRow;
+    /** Сервер не отвечает — показываем только то, что лежит на телефоне. */
+    private boolean serverDown;
     private String path = "";
     private boolean offline;
 
@@ -75,46 +79,50 @@ public class ShelfActivity extends AppCompatActivity {
         offline = getIntent().getBooleanExtra(EXTRA_OFFLINE, false);
 
         LinearLayout box = Ui.column(this);
-        Ui.add(box, Ui.title(this, offline ? "Скачанное" : "Медиатека"), 6);
+
+        // Заголовок и шестерёнка в одной строке: настройки нужны редко,
+        // но должны быть под рукой — в том числе когда сервер не отвечает
+        // и поменять адрес больше негде
+        LinearLayout head = Ui.row(this);
+        TextView heading = Ui.title(this, offline ? "Скачанное" : "Медиатека");
+        head.addView(heading, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        android.widget.ImageButton gear = Ui.roundButton(this, R.drawable.ic_gear,
+                Ui.PRIMARY, 48, "Настройки");
+        gear.setOnClickListener(v -> startActivity(
+                new Intent(this, SettingsActivity.class)));
+        head.addView(gear);
+        Ui.add(box, head, 4);
 
         crumbs = Ui.label(this, "", Ui.DIM, 13);
         Ui.add(box, crumbs, 10);
 
-        LinearLayout tools = Ui.row(this);
-        // Подпись меняется по месту: в корне эта кнопка закрывает приложение,
-        // и называть её «Наверх» было прямым обманом — идти уже некуда.
+        // Кнопка «Наверх» живёт отдельной строкой: она про место в каталоге,
+        // а не про раздел, и появляется только когда есть куда подниматься
         upButton = Ui.button(this, "Наверх", Ui.SECONDARY);
         upButton.setOnClickListener(v -> goUp());
-        tools.addView(upButton);
+        upButtonRow = Ui.row(this);
+        upButtonRow.addView(upButton);
+        Ui.add(box, upButtonRow, 8);
+
+        // Разделы — одной строкой во всю ширину, без прокрутки вбок:
+        // спрятанную за краем кнопку никто не ищет. Подписи мельче, зато
+        // все четыре видны сразу.
+        onlineTools = Ui.row(this);
         if (!offline) {
-            Button saved = Ui.button(this, "Скачанное", Ui.DIM);
-            saved.setOnClickListener(v -> {
+            onlineTools.addView(tool("Скачанное", v -> {
                 Intent intent = new Intent(this, ShelfActivity.class);
                 intent.putExtra(EXTRA_OFFLINE, true);
                 startActivity(intent);
-            });
-            tools.addView(saved);
+            }));
+            onlineTools.addView(tool("Папки", v -> startActivity(
+                    new Intent(this, FoldersActivity.class))));
+            onlineTools.addView(tool("Достижения", v -> startActivity(
+                    new Intent(this, AchievementsActivity.class))));
+            onlineTools.addView(tool("Статистика", v -> startActivity(
+                    new Intent(this, StatsActivity.class))));
         }
-        if (!offline) {
-            Button myFolders = Ui.button(this, "Мои папки", Ui.DIM);
-            myFolders.setOnClickListener(v -> startActivity(
-                    new Intent(this, FoldersActivity.class)));
-            tools.addView(myFolders);
-            Button achievements = Ui.button(this, "Достижения", Ui.DIM);
-            achievements.setOnClickListener(v -> startActivity(
-                    new Intent(this, AchievementsActivity.class)));
-            tools.addView(achievements);
-            Button stats = Ui.button(this, "Статистика", Ui.DIM);
-            stats.setOnClickListener(v -> startActivity(
-                    new Intent(this, StatsActivity.class)));
-            tools.addView(stats);
-        }
-        // Кнопок стало больше, чем влезает в ширину телефона: пусть ряд
-        // прокручивается вбок, а не сжимает подписи до нечитаемых
-        HorizontalScrollView toolScroller = new HorizontalScrollView(this);
-        toolScroller.setHorizontalScrollBarEnabled(false);
-        toolScroller.addView(tools);
-        Ui.add(box, toolScroller, 12);
+        Ui.add(box, onlineTools, 12);
 
         if (!offline) {
             searchField = Ui.field(this, "Поиск по медиатеке");
@@ -166,6 +174,30 @@ public class ShelfActivity extends AppCompatActivity {
         scroll.addView(box);
         setContentView(scroll);
 
+        // Внутри папки приложение ходит одним экраном, поэтому у системной
+        // «назад» нет своей истории — и она закрывала приложение прямо из
+        // вложенной папки. Перехватываем: сначала выходим из поиска, потом
+        // поднимаемся по каталогу, и только с самого верха закрываемся
+        getOnBackPressedDispatcher().addCallback(this,
+                new androidx.activity.OnBackPressedCallback(true) {
+                    @Override
+                    public void handleOnBackPressed() {
+                        if (searchField != null
+                                && searchField.getText().length() > 0) {
+                            searchField.setText("");
+                            return;
+                        }
+                        if (!offline && !path.isEmpty()) {
+                            goUp();
+                            return;
+                        }
+                        // Наверх идти некуда — отдаём ход системе
+                        setEnabled(false);
+                        getOnBackPressedDispatcher().onBackPressed();
+                        setEnabled(true);
+                    }
+                });
+
         refreshUpButton();
         if (offline) {
             showDownloaded();
@@ -178,6 +210,19 @@ public class ShelfActivity extends AppCompatActivity {
         }
     }
 
+    /** Кнопка раздела: делит ширину поровну с соседями. */
+    private Button tool(String text, View.OnClickListener action) {
+        Button view = Ui.button(this, text, Ui.DIM);
+        view.setTextSize(12);
+        view.setPadding(Ui.dp(this, 6), 0, Ui.dp(this, 6), 0);
+        view.setOnClickListener(action);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        params.setMargins(Ui.dp(this, 2), 0, Ui.dp(this, 2), 0);
+        view.setLayoutParams(params);
+        return view;
+    }
+
     /**
      * Верхняя кнопка нужна, только когда есть куда возвращаться.
      *
@@ -188,12 +233,12 @@ public class ShelfActivity extends AppCompatActivity {
     private void refreshUpButton() {
         if (offline) {
             upButton.setText("Назад");
-            upButton.setVisibility(View.VISIBLE);
+            upButtonRow.setVisibility(View.VISIBLE);
         } else if (path.isEmpty()) {
-            upButton.setVisibility(View.GONE);
+            upButtonRow.setVisibility(View.GONE);
         } else {
             upButton.setText("Наверх");
-            upButton.setVisibility(View.VISIBLE);
+            upButtonRow.setVisibility(View.VISIBLE);
         }
     }
 
@@ -222,13 +267,39 @@ public class ShelfActivity extends AppCompatActivity {
             String finalError = error;
             runOnUiThread(() -> {
                 if (finalError != null) {
-                    crumbs.setText(finalError);
+                    showWithoutServer(finalError);
                     return;
                 }
+                serverDown = false;
+                onlineTools.setVisibility(View.VISIBLE);
+                if (searchField != null) searchField.setVisibility(View.VISIBLE);
                 path = target;
                 show(finalData);
             });
         });
+    }
+
+    /**
+     * Сервера нет. Каталог показывать нечего — ни одна книга оттуда сейчас
+     * не откроется, и разделы вроде достижений тоже не ответят. Поэтому
+     * прячем всё, что без сервера не работает, и оставляем скачанное: его
+     * можно слушать прямо сейчас.
+     */
+    private void showWithoutServer(String reason) {
+        serverDown = true;
+        shown = null;
+        onlineTools.setVisibility(View.GONE);
+        if (searchField != null) {
+            searchField.setText("");
+            searchField.setVisibility(View.GONE);
+        }
+        // Очистка строки поиска сама просит перезагрузить каталог — а его
+        // сейчас неоткуда взять, и подпись успевала смениться обратно
+        // на «Загружаю...». Снимаем отложенный запрос
+        typing.removeCallbacksAndMessages(null);
+        crumbs.setText(reason + " Показаны книги на телефоне.");
+        refreshUpButton();
+        showDownloaded();
     }
 
     private void show(JSONObject data) {
@@ -437,7 +508,10 @@ public class ShelfActivity extends AppCompatActivity {
     private void showDownloaded() {
         list.removeAllViews();
         JSONArray books = store.all();
-        crumbs.setText(books.length() == 0 ? "" : "Книг на телефоне: " + books.length());
+        if (!serverDown) {
+            crumbs.setText(books.length() == 0
+                    ? "" : "Книг на телефоне: " + books.length());
+        }
         if (books.length() == 0) {
             list.addView(Ui.label(this,
                     "Ничего не скачано. Откройте книгу и нажмите «Скачать».",
@@ -586,7 +660,7 @@ public class ShelfActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (offline) showDownloaded();
+        if (offline || serverDown) showDownloaded();
         // Каждый раз, когда человек возвращается на полку, пробуем отдать
         // накопленное: связь могла появиться, пока он слушал в дороге.
         // Делать это только при первом открытии было мало — приложение

@@ -33,7 +33,7 @@
             + (earned ? ' is-earned' : ' is-locked');
 
         const picture = item.image
-            ? `<img src="${escapeHtml(item.image)}" alt=""
+            ? `<img src="${escapeHtml(item.image)}" alt="" loading="lazy" decoding="async"
                  onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('i'),{className:'fas fa-trophy achievement__fallback'}));">`
             : '<i class="fas fa-trophy achievement__fallback"></i>';
 

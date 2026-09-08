@@ -780,7 +780,7 @@
             : '/achievements';
         toast.className = `achievement-toast achievement-toast--${item.rarity}`;
         const picture = item.image
-            ? `<img src="${item.image}" alt="" onerror="this.remove();">`
+            ? `<img src="${item.image}" alt="" loading="lazy" decoding="async" onerror="this.remove();">`
             : '<i class="fas fa-trophy"></i>';
         toast.innerHTML = `
             <div class="achievement-toast__pic">${picture}</div>

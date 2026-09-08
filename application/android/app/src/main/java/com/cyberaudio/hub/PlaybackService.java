@@ -9,6 +9,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.media.AudioAttributes;
 import android.media.MediaPlayer;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -128,6 +129,14 @@ public class PlaybackService extends Service {
             @Override
             public void onFastForward() {
                 seekBy(SEEK_STEP);
+            }
+
+            @Override
+            public void onCustomAction(String action, Bundle extras) {
+                // Сюда приходят нажатия кнопок перемотки, которые система
+                // рисует на экране блокировки с Android 13
+                if (ACTION_REWIND.equals(action)) seekBy(-SEEK_STEP);
+                else if (ACTION_FORWARD.equals(action)) seekBy(SEEK_STEP);
             }
 
             @Override
@@ -418,7 +427,21 @@ public class PlaybackService extends Service {
                 .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration())
                 .build());
 
+        /*
+         * С Android 13 система рисует медиа-кнопки сама, по действиям
+         * сессии, а не по кнопкам уведомления. Штатные ACTION_REWIND и
+         * ACTION_FAST_FORWARD она при этом не показывает — поэтому на
+         * таких телефонах на заблокированном экране оставалось три кнопки
+         * вместо пяти, без перемотки. Добавляем перемотку своими
+         * действиями: их система показывает наравне с остальными.
+         */
         session.setPlaybackState(new PlaybackStateCompat.Builder()
+                .addCustomAction(new PlaybackStateCompat.CustomAction.Builder(
+                        ACTION_REWIND, "На 5 секунд назад",
+                        R.drawable.ic_rewind).build())
+                .addCustomAction(new PlaybackStateCompat.CustomAction.Builder(
+                        ACTION_FORWARD, "На 5 секунд вперёд",
+                        R.drawable.ic_forward).build())
                 .setActions(PlaybackStateCompat.ACTION_PLAY
                         | PlaybackStateCompat.ACTION_PAUSE
                         | PlaybackStateCompat.ACTION_PLAY_PAUSE

@@ -83,6 +83,23 @@ public class FoldersActivity extends AppCompatActivity {
         scroll.addView(box);
         setContentView(scroll);
 
+        // Подборка открывается тем же экраном, поэтому системную «назад»
+        // перехватываем сами: из папки она возвращает к списку папок
+        getOnBackPressedDispatcher().addCallback(this,
+                new androidx.activity.OnBackPressedCallback(true) {
+                    @Override
+                    public void handleOnBackPressed() {
+                        if (opened != null) {
+                            opened = null;
+                            render();
+                            return;
+                        }
+                        setEnabled(false);
+                        getOnBackPressedDispatcher().onBackPressed();
+                        setEnabled(true);
+                    }
+                });
+
         load();
     }
 

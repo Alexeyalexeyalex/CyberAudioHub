@@ -58,6 +58,10 @@ public final class Covers {
      */
     public static void into(ImageView view, Api api, String url, File cacheDir) {
         if (url == null || url.isEmpty()) return;
+        // Экономия трафика: обложка — самое тяжёлое, что тянет приложение,
+        // и человек мог попросить её не грузить вовсе. Заглушка уже стоит
+        // в ячейке, поэтому просто выходим
+        if (Settings.noImages(view.getContext())) return;
         final String full = api.trackUrl(url);
         // Метка ячейки: пока обложка летит по сети, список могли прокрутить,
         // и этот же ImageView уже показывает другую книгу
@@ -79,6 +83,20 @@ public final class Covers {
                 if (full.equals(view.getTag())) view.setImageBitmap(ready);
             });
         });
+    }
+
+    /** Забывает скачанные обложки: после смены сервера они уже не те. */
+    public static void clear(File cacheDir) {
+        MEMORY.evictAll();
+        File[] files = cacheDir.listFiles();
+        if (files == null) return;
+        for (File file : files) {
+            if (file.getName().startsWith("cover_")) {
+                // Не удалилось — не беда: следующая обложка просто
+                // перезапишет файл своим содержимым
+                file.delete();
+            }
+        }
     }
 
     private static Bitmap fromDisk(File cacheDir, String url) {
