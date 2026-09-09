@@ -30,10 +30,22 @@
             </div>
             <div class="audio-orbit" id="book-recommendation">
                 <div class="audio-orbit__ring"></div>
-                <a class="audio-orbit__disc" id="recommendation-link" aria-label="Подбираем книгу">
+                    <div class="audio-orbit__deck">
+                    <a class="audio-orbit__disc" id="recommendation-link" aria-label="Подбираем книгу">
                     <i class="fas fa-headphones" aria-hidden="true"></i>
                     <img class="audio-orbit__cover" id="recommendation-cover" alt="" hidden>
-                </a>
+                    </a>
+                    </div>
+                    <svg class="audio-orbit__arm" viewBox="0 0 90 190" aria-hidden="true">
+                        <defs><linearGradient id="arm-metal"><stop stop-color="#716778"/><stop offset=".45" stop-color="#ece2f0"/><stop offset=".7" stop-color="#98899f"/><stop offset="1" stop-color="#45394f"/></linearGradient></defs>
+                        <circle cx="70" cy="18" r="17" fill="#181020" stroke="#b9a6c5" stroke-width="1.5"/>
+                        <circle cx="70" cy="18" r="9" fill="#48334e"/>
+                        <path d="M70 18V112Q70 126 58 139L30 167" fill="none" stroke="#08040eb0" stroke-width="10" transform="translate(3 4)"/>
+                        <path d="M70 18V112Q70 126 58 139L30 167" fill="none" stroke="url(#arm-metal)" stroke-width="6" stroke-linecap="round"/>
+                        <path d="M34 155l9 9-19 19-9-9z" fill="#22172d" stroke="#ddc6e6"/>
+                        <path d="M19 174l5 5" stroke="#00f2ff" stroke-width="3" stroke-linecap="round"/>
+                    </svg>
+                    <button class="audio-orbit__pause" id="recommendation-pause" type="button" hidden aria-label="Остановить анимацию пластинки" aria-pressed="false"><i class="fas fa-pause" aria-hidden="true"></i></button>
                 <span class="audio-orbit__caption" id="recommendation-caption" aria-live="polite">НА ВАШЕЙ ВОЛНЕ</span>
             </div>
         </header>

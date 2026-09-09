@@ -172,6 +172,11 @@
     let els = {};
 
     function renderUserArea() {
+        const sidebarAdmin = document.getElementById('sidebar-admin-link');
+        if (sidebarAdmin) {
+            sidebarAdmin.hidden = !(user && user.is_admin);
+            sidebarAdmin.parentElement.classList.toggle('has-admin', !sidebarAdmin.hidden);
+        }
         if (!els.userChip) return;
         if (user) {
             els.userChip.hidden = false;

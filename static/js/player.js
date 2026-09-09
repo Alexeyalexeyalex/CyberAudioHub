@@ -459,7 +459,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         <button class="control-btn text-btn" id="mini-audio" title="Вернуться к плееру"><i class="fas fa-headphones"></i></button>
                     </div>
                     <div class="mini-player__progress" id="mini-progress"><div class="progress-bar" id="mini-progress-bar"></div></div>
-                    <span class="mini-player__time" id="mini-time">0:00</span>`;
+                    <span class="mini-player__time" id="mini-time">0:00</span>
+                    <button type="button" class="reader-menu-toggle" id="reader-menu-toggle" aria-expanded="true" aria-controls="reader-options"><i class="fas fa-chevron-up" aria-hidden="true"></i><span>Свернуть меню</span></button>`;
+
+                const options = document.querySelector('.transcript-toolbar');
+                options.id = 'reader-options';
+                document.getElementById('reader-menu-toggle').addEventListener('click', () => {
+                    const compact = textView.classList.toggle('is-compact');
+                    const toggle = document.getElementById('reader-menu-toggle');
+                    toggle.setAttribute('aria-expanded', String(!compact));
+                    toggle.querySelector('span').textContent = compact ? 'Показать меню' : 'Свернуть меню';
+                    toggle.querySelector('i').className = compact ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
+                    options.hidden = compact;
+                    syncToolbarOffset();
+                });
 
                 document.getElementById('mini-play').addEventListener('click', togglePlay);
                 document.getElementById('mini-prev').addEventListener('click', prevTrack);

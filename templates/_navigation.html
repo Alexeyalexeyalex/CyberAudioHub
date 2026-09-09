@@ -2,7 +2,7 @@
 <a class="skip-link" href="#main-content">К содержимому</a>
 <aside class="app-navigation" aria-label="Разделы CyberAudio">
     <a class="app-brand" href="/" aria-label="CyberAudio Hub — главная">
-        <span class="brand-symbol" aria-hidden="true"><i class="fas fa-headphones"></i></span>
+        <span class="brand-symbol" aria-hidden="true"><img src="{{ url_for('static', filename='assets/favicon.svg') }}" width="42" height="42" alt=""></span>
         <span>CyberAudio<span class="brand-caption">HUB / АУДИОКНИГИ</span></span>
     </a>
     <span class="navigation-label">ВАШЕ ПРОСТРАНСТВО</span>
@@ -12,6 +12,9 @@
             <i class="fas {{ icon }}" aria-hidden="true"></i><span>{{ label }}</span>
         </a>
         {% endfor %}
+        <a href="/admin" class="navigation-link navigation-link--admin" id="sidebar-admin-link" hidden{% if section == '/admin' %} aria-current="page"{% endif %}>
+            <i class="fas fa-sliders" aria-hidden="true"></i><span>Админ-панель</span>
+        </a>
     </nav>
     <div class="navigation-footnote">
         <span class="navigation-pulse" aria-hidden="true"></span>
@@ -19,6 +22,6 @@
     </div>
 </aside>
 <div class="app-topbar">
-    <a class="mobile-brand" href="/" aria-label="CyberAudio — главная"><i class="fas fa-headphones" aria-hidden="true"></i> CyberAudio</a>
+    <a class="mobile-brand" href="/" aria-label="CyberAudio — главная"><img src="{{ url_for('static', filename='assets/favicon.svg') }}" width="30" height="30" alt=""> CyberAudio</a>
     <span class="topbar-caption">ВАША ЛИЧНАЯ АУДИОТЕКА</span>
 </div>

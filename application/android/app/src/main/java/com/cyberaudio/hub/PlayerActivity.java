@@ -50,6 +50,8 @@ public class PlayerActivity extends AppCompatActivity
     private boolean offline;
 
     private TextView titleView;
+    private android.widget.ImageView coverView;
+    private Button requestText;
     private TextView nowPlaying;
     private TextView clock;
     private SeekBar bar;
@@ -146,7 +148,20 @@ public class PlayerActivity extends AppCompatActivity
         topRow.addView(back);
         Ui.add(box, topRow, 8);
 
+        coverView = new android.widget.ImageView(this);
+        coverView.setImageResource(R.drawable.cover_placeholder);
+        coverView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+        coverView.setBackground(Ui.card(this, 0));
+        coverView.setClipToOutline(true);
+        int side = Ui.dp(this, Math.min(260, getResources().getConfiguration().screenWidthDp - 64));
+        LinearLayout.LayoutParams artSize = new LinearLayout.LayoutParams(side, side);
+        artSize.gravity = android.view.Gravity.CENTER_HORIZONTAL;
+        artSize.topMargin = Ui.dp(this, 8); artSize.bottomMargin = Ui.dp(this, 24);
+        box.addView(coverView, artSize);
+        if (!cover.isEmpty()) Covers.into(coverView, api, cover, getCacheDir());
+
         titleView = Ui.title(this, title);
+        titleView.setTextSize(25);
         Ui.add(box, titleView, 4);
 
         nowPlaying = Ui.label(this, "Выберите главу", Ui.TEXT, 16);
@@ -196,7 +211,7 @@ public class PlayerActivity extends AppCompatActivity
 
         // Единственная заливная кнопка в ряду: главное действие должно
         // читаться сразу, остальные — просто значки
-        playIcon = Ui.roundButton(this, R.drawable.ic_play, Ui.SECONDARY, 66,
+        playIcon = Ui.roundButton(this, R.drawable.ic_play, Ui.PRIMARY, 66,
                 "Играть", true);
         playIcon.setOnClickListener(v -> withService(service -> {
             if (service.isPlaying()) service.pause();
@@ -216,22 +231,15 @@ public class PlayerActivity extends AppCompatActivity
         // следить не за чем: тянуть текст с сервера отдельно значило бы
         // держать книгу наполовину онлайн, наполовину офлайн
         textRow = Ui.row(this);
-        textButton = Ui.button(this,
-                store.isDownloaded(path) ? "Показать текст"
-                        : "Текст — после скачивания", Ui.PRIMARY);
-        textButton.setEnabled(store.isDownloaded(path));
-        textButton.setAlpha(store.isDownloaded(path) ? 1f : 0.5f);
+        textButton = Ui.button(this, "Текст книги", Ui.PRIMARY);
         textButton.setOnClickListener(v -> toggleText());
         textRow.addView(textButton, new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
-        Button expand = Ui.button(this, "На весь экран", Ui.SECONDARY);
-        expand.setEnabled(store.isDownloaded(path));
-        expand.setAlpha(store.isDownloaded(path) ? 1f : 0.5f);
+        Button expand = Ui.button(this, "Развернуть", Ui.SECONDARY);
         expand.setOnClickListener(v -> setFullText(true));
         LinearLayout.LayoutParams expandParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT);
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
         expandParams.leftMargin = Ui.dp(this, 8);
         textRow.addView(expand, expandParams);
         Ui.add(box, textRow, 6);
@@ -242,7 +250,9 @@ public class PlayerActivity extends AppCompatActivity
         wholeBook = settings.getBoolean(WHOLE_KEY, false);
         following = settings.getBoolean(FOLLOW_KEY, true);
 
-        textToolbar = Ui.row(this);
+        textToolbar = new LinearLayout(this);
+        textToolbar.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout checks = Ui.row(this);
         wholeBox = Ui.check(this, "Вся книга", wholeBook);
         wholeBox.setOnCheckedChangeListener((v, on) -> {
             wholeBook = on;
@@ -263,12 +273,13 @@ public class PlayerActivity extends AppCompatActivity
             if (!on) clearHighlight();
             else if (showingText) highlight();
         });
-        textToolbar.addView(wholeBox);
+        checks.addView(wholeBox);
         LinearLayout.LayoutParams gap = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
         gap.leftMargin = Ui.dp(this, 12);
-        textToolbar.addView(followBox, gap);
+        checks.addView(followBox, gap);
+        textToolbar.addView(checks);
 
         // Выход из полного экрана держим рядом с галочками: наверху должно
         // остаться только управление проигрыванием
@@ -285,6 +296,21 @@ public class PlayerActivity extends AppCompatActivity
                 LinearLayout.LayoutParams.WRAP_CONTENT);
         collapseParams.leftMargin = Ui.dp(this, 12);
         textToolbar.addView(collapseButton, collapseParams);
+
+        requestText = Ui.button(this, "Запросить текст книги", Ui.DIM);
+        requestText.setVisibility(View.GONE);
+        requestText.setOnClickListener(v -> {
+            requestText.setEnabled(false);
+            pool.execute(() -> {
+                try {
+                    api.requestTranscript(path);
+                    runOnUiThread(() -> requestText.setText("Запрос отправлен"));
+                } catch (Exception e) {
+                    runOnUiThread(() -> { requestText.setEnabled(true); toast(Api.describe(e)); });
+                }
+            });
+        });
+        textToolbar.addView(requestText);
 
         textToolbar.setVisibility(View.GONE);
         Ui.add(box, textToolbar, 8);
@@ -325,7 +351,7 @@ public class PlayerActivity extends AppCompatActivity
         // Без этого вес не сработает и текст не растянется на весь экран
         outerScroll.setFillViewport(true);
         outerScroll.addView(box);
-        setContentView(outerScroll);
+        Ui.screen(this, outerScroll, -1);
     }
 
     /**
@@ -346,6 +372,7 @@ public class PlayerActivity extends AppCompatActivity
         int hidden = full ? View.GONE : View.VISIBLE;
         topRow.setVisibility(hidden);
         titleView.setVisibility(hidden);
+        coverView.setVisibility(hidden);
         nowPlaying.setVisibility(hidden);
         bar.setVisibility(hidden);
         clock.setVisibility(hidden);
@@ -453,7 +480,7 @@ public class PlayerActivity extends AppCompatActivity
     private void ensureTimeline(int index) {
         // В режиме всей книги текст один на все главы, пересобирать нечего
         final int wanted = wholeBook ? -2 : index;
-        if (timelineTrack == wanted && timeline != null) return;
+        if (timelineTrack == wanted) return;
         timelineTrack = wanted;
         timeline = null;
         litWord = null;
@@ -467,19 +494,21 @@ public class PlayerActivity extends AppCompatActivity
                 org.json.JSONArray[] parts = new org.json.JSONArray[count];
                 String[] titles = new String[count];
                 for (int i = 0; i < count; i++) {
-                    parts[i] = Transcripts.load(store, path, i);
+                    parts[i] = chapterText(i);
                     titles[i] = (i + 1) + ". " + names[i];
                 }
                 built = Transcripts.build(parts, titles, 0);
             } else {
                 built = Transcripts.build(
                         new org.json.JSONArray[]{
-                                Transcripts.load(store, path, index)},
+                                chapterText(index)},
                         new String[]{""}, index);
             }
             final Transcripts.Timeline ready = built;
             runOnUiThread(() -> {
                 if (timelineTrack != wanted) return;   // режим уже сменился
+                if (isDestroyed()) return;
+                requestText.setVisibility(ready.isEmpty() && !offline ? View.VISIBLE : View.GONE);
                 if (ready.isEmpty()) {
                     textView.setText(everything
                             ? "У этой книги нет текста."
@@ -491,6 +520,15 @@ public class PlayerActivity extends AppCompatActivity
                 textView.setText(marked(ready.text, -1, null));
             });
         });
+    }
+
+    private org.json.JSONArray chapterText(int index) {
+        org.json.JSONArray data = Transcripts.load(store, path, index);
+        if ((data == null || data.length() == 0) && !offline && !Thread.currentThread().isInterrupted()) {
+            try { Transcripts.save(api, store, path, index); } catch (Exception ignored) { }
+            data = Transcripts.load(store, path, index);
+        }
+        return data;
     }
 
     /**
@@ -518,7 +556,9 @@ public class PlayerActivity extends AppCompatActivity
 
     private void highlight() {
         PlaybackService service = PlaybackService.get();
-        if (service == null || timeline == null) return;
+        if (service == null) return;
+        ensureTimeline(service.index());
+        if (timeline == null) return;
         // Без галочки текст стоит нетронутым — ни подсветки, ни затемнения
         if (!following) return;
         ensureTimeline(service.index());
@@ -738,9 +778,8 @@ public class PlayerActivity extends AppCompatActivity
             Downloads.forget(path);
             // Текст ушёл вместе с книгой — следить больше не за чем
             if (showingText) toggleText();
-            textButton.setText("Текст — после скачивания");
-            textButton.setEnabled(false);
-            textButton.setAlpha(0.5f);
+            timelineTrack = -1;
+            textButton.setText("Текст книги");
             refreshDownloadButton();
             return;
         }
@@ -896,7 +935,8 @@ public class PlayerActivity extends AppCompatActivity
         // следующего запуска ради уже готовой записи незачем
         history.flush(api, true);
         beat.removeCallbacksAndMessages(null);
-        withService(service -> service.setListener(null));
+        PlaybackService service = PlaybackService.get();
+        if (service != null) service.clearListener(this);
         pool.shutdownNow();
         super.onDestroy();
     }

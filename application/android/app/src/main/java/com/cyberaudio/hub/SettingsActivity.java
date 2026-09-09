@@ -67,7 +67,7 @@ public class SettingsActivity extends AppCompatActivity {
         ScrollView scroll = new ScrollView(this);
         scroll.setBackgroundColor(Ui.DARK);
         scroll.addView(box);
-        setContentView(scroll);
+        Ui.screen(this, scroll, -1);
     }
 
     private void saveServer() {

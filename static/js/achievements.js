@@ -14,7 +14,8 @@
     };
 
     const escapeHtml = (value) => String(value === null || value === undefined ? '' : value)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
     const targetLabel = (item) => {
         if (!item.target_path) return 'за что угодно';
@@ -96,7 +97,8 @@
             summary.textContent = '';
             return;
         }
-        summary.textContent = `Получено ${data.earned} из ${all.length}.`;
+        const earned = Math.max(0, Math.min(all.length, Number(data.earned) || 0));
+        summary.innerHTML = `<div><span class="eyebrow">ВАШИ ОТКРЫТИЯ</span><strong>${earned}<small> / ${all.length}</small></strong><span>историй в коллекции достижений</span></div><div class="achievement-meter" role="progressbar" aria-label="Полученные достижения" aria-valuemin="0" aria-valuemax="${all.length}" aria-valuenow="${earned}"><span style="width:${earned / all.length * 100}%"></span></div>`;
 
         const hideLocked = hideBox.checked;
         const visible = hideLocked ? all.filter(a => a.earned_at) : all;
@@ -143,6 +145,7 @@
             const title = document.createElement('button');
             title.type = 'button';
             title.className = 'achievement-group__title';
+            title.setAttribute('aria-expanded', String(open));
             const isBook = node.children.size === 0;
             title.innerHTML = `<i class="fas fa-chevron-${open ? 'down' : 'right'}"></i> ` +
                 `<i class="fas fa-${isBook ? 'book' : 'folder'}"></i> ` +

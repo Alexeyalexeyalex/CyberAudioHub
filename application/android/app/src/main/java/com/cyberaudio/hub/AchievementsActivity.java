@@ -65,7 +65,7 @@ public class AchievementsActivity extends AppCompatActivity {
         ScrollView scroll = new ScrollView(this);
         scroll.setBackgroundColor(Ui.DARK);
         scroll.addView(box);
-        setContentView(scroll);
+        Ui.screen(this, scroll, -1);
 
         load();
     }
@@ -75,7 +75,8 @@ public class AchievementsActivity extends AppCompatActivity {
             JSONObject data = null;
             String error = null;
             try {
-                data = api.achievements();
+                int friend = getIntent().getIntExtra("friend", 0);
+                data = friend > 0 ? api.compareAchievements(friend) : api.achievements();
             } catch (Exception e) {
                 error = Api.describe(e);
             }
@@ -97,6 +98,8 @@ public class AchievementsActivity extends AppCompatActivity {
         int earned = data.optInt("earned");
         int total = items == null ? 0 : items.length();
         summary.setText("Получено " + earned + " из " + total);
+        if (data.has("friend")) summary.setText("У вас: " + data.optInt("mine_total")
+                + " · У друга: " + data.optInt("their_total"));
 
         if (total == 0) {
             list.addView(Ui.label(this, "Достижений пока не придумали.", Ui.DIM, 15));
@@ -184,6 +187,9 @@ public class AchievementsActivity extends AppCompatActivity {
                 look[1] + (earned ? " · получено" : " · ещё не получено"),
                 earned ? Ui.PRIMARY : Ui.DIM, 12);
         row.addView(rarity);
+        if (item.has("mine")) row.addView(Ui.label(this,
+                "Вы: " + (item.isNull("mine") ? "—" : "получено")
+                        + " · Друг: " + (item.isNull("theirs") ? "—" : "получено"), Ui.PRIMARY, 13));
 
         String description = item.optString("description");
         if (!description.isEmpty()) {

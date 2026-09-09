@@ -536,23 +536,100 @@ body.is-text-mode .transcript-toolbar {
     .reader-scroll-top { right: 14px; bottom: 14px; min-width: 44px; padding: 0 13px; }
 }
 
+/* Секции: внутреннее пространство не зависит от содержимого таблицы. */
+.admin-section { padding: clamp(18px, 2.5vw, 30px); }
+.admin-section__head { gap: 12px 18px; padding: 0 0 18px; margin: 0 0 20px; border-color: var(--stroke-soft); }
+.admin-section__head h2 { margin: 0; padding: 0; color: var(--text-color); font-size: 21px; text-transform: none; letter-spacing: -.4px; line-height: 1.35; }
+.admin-section .worker-hint { margin: 0 0 20px; }
+.navigation-link[hidden] { display: none; }
+.navigation-link--admin { margin-top: 16px; background: #e6acf00a; }
+.reader-menu-toggle { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 44px; padding: 6px 12px; border: 0; border-radius: 10px; color: var(--text-secondary); background: #ffffff06; font-size: 12px; cursor: pointer; }
+.text-view.is-compact .mini-player__art, .text-view.is-compact .mini-player__info, .text-view.is-compact .mini-player__time, .text-view.is-compact .mini-player__progress { display: none; }
+.text-view.is-compact .mini-player { grid-template-areas: 'controls' 'fold'; grid-template-columns: minmax(0, 1fr); border-radius: 16px; }
+.text-view.is-compact .reader-menu-toggle { grid-area: fold; }
+.text-view.is-compact .mini-player__controls { justify-content: center; }
+.transcript-toolbar[hidden] { display: none; }
+
+/* Коллекция достижений и круг друзей — самостоятельные страницы кабинета. */
+.achievements-summary, .social-overview { padding: 26px 30px; margin: 0 0 22px; border-radius: 24px; background: radial-gradient(ellipse at 92% 5%, #b467c92b, transparent 55%), linear-gradient(120deg, #25182f, #182632); border: 1px solid #d6b0eb14; }
+.achievements-summary:empty { display: none; }
+.achievements-summary strong, .social-overview strong { display: block; font-size: 52px; line-height: 1.35; font-weight: 700; color: var(--text-color); letter-spacing: -2px; }
+.achievements-summary strong small { font-size: 25px; color: var(--text-secondary); font-weight: 400; letter-spacing: 0; }
+.achievements-summary > div > span:last-child, .social-overview > div > span:last-child { color: var(--text-secondary); font-size: 13px; }
+.achievement-meter { height: 5px; margin-top: 22px; background: #ffffff12; border-radius: 8px; overflow: hidden; }
+.achievement-meter > span { display: block; height: 100%; background: linear-gradient(90deg, #00d8e8, #e6acf0); border-radius: inherit; transition: width 400ms; }
+.social-overview { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.achievements-controls { justify-content: space-between; padding: 18px 22px; border: 0; margin-bottom: 24px; }
+.achievements-controls select { min-height: 44px; padding: 8px 14px; background: #ffffff08; border: 1px solid var(--stroke-soft); }
+button.achievement-group__title { padding: 18px 20px; border: 0; border-radius: 14px; background: var(--surface-2); color: var(--text-color); font: 600 16px/1.5 inherit; text-transform: none; letter-spacing: 0; text-align: left; box-shadow: none; overflow-wrap: anywhere; }
+.achievement-group__title > i { color: #bd9dcf; font-size: 14px; }
+.achievement-group__count { margin-left: auto; background: #00f2ff0d; color: #8bd5da; padding: 4px 9px; }
+.achievement { padding: 18px; border: 1px solid var(--stroke-soft); background: linear-gradient(135deg, #ffffff03, transparent), var(--surface-1); gap: 16px; }
+.achievement__pic { border-radius: 18px; background: #a76bc316; border: 0; box-shadow: inset 0 0 24px #a96ec315; }
+.achievement__title { font-size: 17px; letter-spacing: -.2px; }
+.achievement__desc { font-size: 13px; line-height: 1.6; }
+.achievement__rarity { border-radius: 20px; font-size: 10px; letter-spacing: .4px; padding: 4px 9px; }
+.achievement.is-locked { opacity: .65; filter: saturate(.45); }
+.friend-list { gap: 12px; }
+.friend-row { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 16px; padding: 20px; border: 0; border-radius: 18px; background: var(--surface-2); }
+.friend-avatar { width: 52px; height: 52px; border-radius: 18px; display: grid; place-items: center; color: #e8c6f2; font-size: 22px; font-weight: 650; background: linear-gradient(145deg, #4e325f, #253e4a); }
+.friend-row__nick { font-size: 18px; }
+.friend-row__login { font-size: 12px; margin-top: 3px; }
+.friend-row__actions .panel-btn { min-height: 44px; border-radius: 12px; padding: 10px 14px; }
+.friend-hint { padding: 14px 0; line-height: 1.65; }
+.compare-summary { gap: 14px; }
+.compare-side { flex: 1; min-width: 180px; padding: 20px; border-radius: 16px; background: var(--surface-2); }
+.compare-side b { color: #e6acf0; }
+.compare-row { padding: 16px; border: 0; border-radius: 14px; background: var(--surface-2); }
+@media (max-width: 800px) {
+    .navigation-links.has-admin { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .navigation-link--admin { margin-top: 0; }
+    body.is-text-mode .back-button { left: 16px; }
+    .friend-row { grid-template-columns: 44px minmax(0, 1fr); padding: 16px; gap: 12px; }
+    .friend-avatar { width: 44px; height: 44px; border-radius: 15px; }
+    .friend-row__actions { grid-column: 1 / -1; }
+}
+@media (max-width: 520px) {
+    .admin-section { padding: 18px 16px; }
+    .admin-section__head h2 { font-size: 19px; }
+    .achievements-summary, .social-overview { padding: 22px 18px; border-radius: 20px; gap: 16px; }
+    .social-overview .eyebrow { font-size: 8px; letter-spacing: 1px; }
+    .social-overview strong { font-size: 42px; }
+    button.achievement-group__title { padding: 14px 12px; font-size: 14px; }
+    .achievement-group { max-width: 100%; margin-left: 0 !important; }
+    .text-view.is-compact .mini-player__controls { justify-content: space-between; flex-wrap: nowrap; }
+    .compare-col { width: 44px; }
+}
+
 /* Рекомендация: прежний диск оживает только после загрузки обложки и задержки. */
-.audio-orbit__disc { position: relative; text-decoration: none; }
+.audio-orbit__deck { width: 70%; aspect-ratio: 1; display: grid; place-items: center; }
+.audio-orbit__disc { position: relative; text-decoration: none; width: 100%; }
 .audio-orbit__disc[href] { cursor: pointer; }
 .audio-orbit__cover { position: absolute; left: 28.5%; top: 28.5%; width: 43%; height: 43%; object-fit: cover; border-radius: 50%; box-shadow: 0 0 0 1px #efcfff40, 0 5px 20px #08031288; }
 .audio-orbit__cover[hidden] { display: none; }
+.audio-orbit__disc > i { transition: opacity 500ms 350ms; }
 .has-recommendation .audio-orbit__disc > i { opacity: 0; }
-.has-recommendation .audio-orbit__disc { animation: recommendation-spin 22s linear infinite; }
-.has-recommendation .audio-orbit__caption { max-width: 260px; text-align: center; color: #edd4f1; font-size: 12px; letter-spacing: .2px; bottom: -8px; line-height: 1.4; }
+.has-recommendation .audio-orbit__cover { animation: record-label 1.2s ease both; }
+.has-recommendation .audio-orbit__deck { animation: record-place 1.2s cubic-bezier(.22,.68,.32,1) both; }
+.audio-orbit__arm { position: absolute; width: 27%; height: 58%; right: 8%; top: 6%; transform-origin: 78% 9.5%; transform: rotate(-34deg); opacity: 0; pointer-events: none; filter: drop-shadow(3px 7px 3px #08031199); }
+.has-recommendation .audio-orbit__arm { animation: needle-place 1.2s 900ms cubic-bezier(.35,0,.2,1) both; }
+.audio-orbit__pause { position: absolute; right: 0; bottom: -12px; width: 44px; height: 44px; border: 0; border-radius: 50%; color: #c0a6ca; background: #281a3480; cursor: pointer; font-size: 12px; }
+.audio-orbit__pause[hidden] { display: none; }
+.has-recommendation .audio-orbit__caption { width: calc(100% - 88px); text-align: center; color: #edd4f1; font-size: 12px; letter-spacing: .2px; bottom: -8px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .audio-orbit__disc:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 7px; }
-@keyframes recommendation-spin { from { transform: rotate(-16deg); } to { transform: rotate(344deg); } }
+@keyframes record-place { 0%,100% { transform: translate3d(0,0,0) scale(1) rotate(0); } 32% { transform: translate3d(7px,-22px,0) scale(1.09) rotate(-5deg); } 78% { transform: translate3d(0,1px,0) scale(.996) rotate(0); } }
+@keyframes record-label { 0%,25% { opacity: 0; } 75%,100% { opacity: 1; } }
+@keyframes needle-place { 0% { opacity: 0; transform: rotate(-34deg) translateY(-3px); } 28% { opacity: 1; } 78% { transform: rotate(9deg) translateY(-3px); } 100% { opacity: 1; transform: rotate(9deg) translateY(0); } }
 @media (max-width: 520px) {
     .audio-orbit { position: relative; width: 170px; height: 184px; right: auto; bottom: auto; margin: 18px auto 0; opacity: 1; }
     .audio-orbit__caption { display: block; }
     .has-recommendation .audio-orbit__caption { bottom: -6px; font-size: 11px; }
+    .audio-orbit__pause { right: -25px; }
+    .has-recommendation .audio-orbit__caption { width: 150px; }
 }
 @media (prefers-reduced-motion: reduce) {
     .has-recommendation .audio-orbit__disc { animation: none; }
+    .has-recommendation .audio-orbit__arm { animation: none; transform: rotate(9deg); opacity: 1; }
 }
 
 /* Праздничные палитры связаны с карточками, навигацией и диском. */

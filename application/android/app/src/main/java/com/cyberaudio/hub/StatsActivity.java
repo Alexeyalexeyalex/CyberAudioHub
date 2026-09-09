@@ -42,6 +42,8 @@ public class StatsActivity extends AppCompatActivity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         api = new Api(this);
+        user = getIntent().getStringExtra("user");
+        if (user == null) user = "";
 
         LinearLayout box = Ui.column(this);
         Ui.add(box, Ui.title(this, "Статистика"), 6);
@@ -71,7 +73,7 @@ public class StatsActivity extends AppCompatActivity {
         ScrollView scroll = new ScrollView(this);
         scroll.setBackgroundColor(Ui.DARK);
         scroll.addView(box);
-        setContentView(scroll);
+        Ui.screen(this, scroll, -1);
 
         load();
     }

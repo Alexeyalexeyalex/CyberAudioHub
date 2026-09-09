@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800" fill="none">
+  <defs>
+    <linearGradient id="base" x2="760" y2="800" gradientUnits="userSpaceOnUse"><stop stop-color="#362343"/><stop offset=".5" stop-color="#191327"/><stop offset="1" stop-color="#122734"/></linearGradient>
+    <radialGradient id="a"><stop stop-color="#b278da" stop-opacity=".27"/><stop offset="1" stop-color="#b278da" stop-opacity="0"/></radialGradient>
+    <linearGradient id="page" x1="240" y1="240" x2="540" y2="600" gradientUnits="userSpaceOnUse"><stop stop-color="#efbcf6"/><stop offset=".48" stop-color="#926dbc"/><stop offset="1" stop-color="#3acbd6"/></linearGradient>
+    <linearGradient id="edge" x1="210" y1="280" x2="580" y2="520" gradientUnits="userSpaceOnUse"><stop stop-color="#f4cbf8"/><stop offset=".5" stop-color="#a387cf"/><stop offset="1" stop-color="#6dece9"/></linearGradient>
+    <linearGradient id="right" x1="400" y1="325" x2="575" y2="520" gradientUnits="userSpaceOnUse"><stop stop-color="#a383c9" stop-opacity=".7"/><stop offset="1" stop-color="#325b71" stop-opacity=".3"/></linearGradient>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="220%"><feDropShadow dy="26" stdDeviation="24" flood-color="#090312" flood-opacity=".75"/></filter>
+  </defs>
+  <path fill="url(#base)" d="M0 0h800v800H0z"/>
+  <ellipse cx="305" cy="260" rx="400" ry="400" fill="url(#a)"/>
+  <circle cx="416" cy="408" r="262" stroke="#e4c1fa" stroke-opacity=".055"/>
+  <circle cx="416" cy="408" r="248" stroke="#e4c1fa" stroke-opacity=".035"/>
+  <ellipse cx="413" cy="421" rx="325" ry="136" transform="rotate(-28 413 421)" stroke="url(#edge)" stroke-opacity=".16"/>
+  <ellipse cx="413" cy="421" rx="348" ry="148" transform="rotate(-28 413 421)" stroke="url(#edge)" stroke-opacity=".07"/>
+  <g filter="url(#shadow)">
+    <path d="M218 300c63-4 116 23 181 70 65-47 118-74 181-70v255c-71-5-125 10-181 53-56-43-110-58-181-53V300Z" fill="#191b31" stroke="#9a88b5" stroke-opacity=".38" stroke-width="2"/>
+    <path d="M236 282c67 5 113 28 163 70v234c-56-43-98-61-163-62V282Z" fill="url(#page)" fill-opacity=".22" stroke="url(#edge)" stroke-width="2"/>
+    <path d="M562 282c-67 5-113 28-163 70v234c56-43 98-61 163-62V282Z" fill="url(#right)" stroke="url(#edge)" stroke-width="2"/>
+    <path d="M256 258c58 13 96 36 143 74v239c-47-39-85-61-143-72V258Z" fill="url(#page)" fill-opacity=".28" stroke="url(#edge)" stroke-width="2"/>
+    <path d="M542 258c-58 13-96 36-143 74v239c47-39 85-61 143-72V258Z" fill="url(#right)" stroke="url(#edge)" stroke-width="2"/>
+    <path d="M399 336v235" stroke="#ecd0fa" stroke-width="3"/>
+    <g stroke="url(#edge)" stroke-width="3" stroke-linecap="round" opacity=".42">
+      <path d="M288 322c26 9 48 21 71 39M288 350c26 9 48 21 71 39M288 378c26 9 43 19 60 31"/>
+    </g>
+    <g stroke="#97f2ef" stroke-width="6" stroke-linecap="round">
+      <path d="M436 407v28M452 385v63M468 365v89M484 378v59M500 383v30"/>
+    </g>
+  </g>
+  <circle cx="690" cy="275" r="5" fill="#64e9e6"/>
+  <circle cx="146" cy="559" r="3" fill="#e9b6f5"/>
+  <path d="M655 577v16m-8-8h16" stroke="#dab9f0" stroke-width="2" opacity=".6"/>
+  <g fill="#cbb6da" font-family="Segoe UI, sans-serif" font-size="13" letter-spacing="4">
+    <text x="56" y="72">CYBERAUDIO / HUB</text>
+    <text x="56" y="736" font-size="11" letter-spacing="3" opacity=".7">YOUR NEXT STORY</text>
+  </g>
+  <path d="M684 716v13m10-19v25m10-32v40m10-30v23m10-18v13m10-10v7" stroke="#80d2d8" stroke-width="2" stroke-linecap="round" opacity=".65"/>
+</svg>

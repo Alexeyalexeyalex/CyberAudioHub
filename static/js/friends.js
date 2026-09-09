@@ -35,6 +35,7 @@
         const row = document.createElement('div');
         row.className = 'friend-row';
         row.innerHTML = `
+            <span class="friend-avatar" aria-hidden="true">${escapeHtml(Array.from(item.nickname || item.login || '?')[0].toUpperCase())}</span>
             <div class="friend-row__who">
                 <span class="friend-row__nick">${escapeHtml(item.nickname)}</span>
                 <span class="friend-row__login">@${escapeHtml(item.login)}</span>
@@ -138,6 +139,11 @@
                 '<p class="friend-hint">Войдите, чтобы видеть друзей.</p>';
             return;
         }
+
+        const total = document.getElementById('friends-total');
+        if (total) total.textContent = data.friends.length;
+        const pending = document.getElementById('friends-pending');
+        if (pending) pending.textContent = data.incoming.length;
 
         fillList($('incoming-list'), $('incoming-section'), data.incoming, (item) => [
             button('Принять', 'fa-check', '', async () => {

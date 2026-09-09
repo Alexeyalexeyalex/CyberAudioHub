@@ -29,7 +29,7 @@ import java.util.concurrent.Executors;
  */
 public class FoldersActivity extends AppCompatActivity {
 
-    private static final int COLUMNS = 3;
+    private static final int COLUMNS = 2;
 
     private final ExecutorService pool = Executors.newSingleThreadExecutor();
     private Api api;
@@ -54,7 +54,9 @@ public class FoldersActivity extends AppCompatActivity {
 
         LinearLayout tools = Ui.row(this);
         Button leave = Ui.button(this, "Назад", Ui.SECONDARY);
-        leave.setOnClickListener(v -> finish());
+        leave.setOnClickListener(v -> {
+            if (opened != null) { opened = null; render(); } else finish();
+        });
         tools.addView(leave);
 
         backButton = Ui.button(this, "К списку папок", Ui.SECONDARY);
@@ -63,16 +65,11 @@ public class FoldersActivity extends AppCompatActivity {
             render();
         });
         backButton.setVisibility(View.GONE);
-        tools.addView(backButton);
 
         Button create = Ui.button(this, "Новая папка", Ui.PRIMARY);
         create.setOnClickListener(v -> askName());
         tools.addView(create);
-        android.widget.HorizontalScrollView toolScroller =
-                new android.widget.HorizontalScrollView(this);
-        toolScroller.setHorizontalScrollBarEnabled(false);
-        toolScroller.addView(tools);
-        Ui.add(box, toolScroller, 14);
+        Ui.add(box, tools, 14);
 
         list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
@@ -81,7 +78,7 @@ public class FoldersActivity extends AppCompatActivity {
         ScrollView scroll = new ScrollView(this);
         scroll.setBackgroundColor(Ui.DARK);
         scroll.addView(box);
-        setContentView(scroll);
+        Ui.screen(this, scroll, 1);
 
         // Подборка открывается тем же экраном, поэтому системную «назад»
         // перехватываем сами: из папки она возвращает к списку папок
@@ -168,7 +165,24 @@ public class FoldersActivity extends AppCompatActivity {
                         render();
                     });
             cell.setOnLongClickListener(v -> {
-                askDelete(folder);
+                new android.app.AlertDialog.Builder(this).setTitle(folder.optString("name"))
+                        .setItems(new String[]{"Переименовать", "Изменить обложку на сайте", "Удалить"}, (d, option) -> {
+                            if (option == 2) askDelete(folder);
+                            else if (option == 1) SiteActivity.open(this, "/", "Мои папки");
+                            else {
+                                android.widget.EditText field = Ui.field(this, "Название папки");
+                                field.setText(folder.optString("name"));
+                                new android.app.AlertDialog.Builder(this).setTitle("Название папки").setView(field)
+                                        .setPositiveButton("Сохранить", (dialog, which) -> {
+                                            String name = field.getText().toString().trim();
+                                            if (name.isEmpty()) return;
+                                            pool.execute(() -> {
+                                                try { api.renameFolder(folder.optInt("id"), name); runOnUiThread(this::load); }
+                                                catch (Exception e) { runOnUiThread(() -> note.setText(Api.describe(e))); }
+                                            });
+                                        }).setNegativeButton("Отмена", null).show();
+                            }
+                        }).show();
                 return true;
             });
             cells.add(cell);
@@ -290,10 +304,6 @@ public class FoldersActivity extends AppCompatActivity {
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT));
 
-            View edge = new View(this);
-            edge.setBackgroundResource(R.drawable.shelf_edge);
-            list.addView(edge, new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 2)));
             list.addView(new View(this), new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 18)));
         }
@@ -311,13 +321,14 @@ public class FoldersActivity extends AppCompatActivity {
         ImageView art = new ImageView(this);
         art.setImageResource(R.drawable.cover_placeholder);
         art.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        int side = Ui.dp(this, 104);
-        item.addView(art, new LinearLayout.LayoutParams(side, side));
+        int side = Ui.dp(this, (getResources().getConfiguration().screenWidthDp - 48) / COLUMNS);
+        art.setBackground(Ui.card(this, 0)); art.setClipToOutline(true);
+        item.addView(art, new LinearLayout.LayoutParams(-1, side));
         if (cover != null && !cover.isEmpty()) {
             Covers.into(art, api, cover, getCacheDir());
         }
 
-        TextView label = Ui.label(this, name, Ui.TEXT, 12);
+        TextView label = Ui.label(this, name, Ui.TEXT, 15);
         label.setGravity(Gravity.CENTER_HORIZONTAL);
         label.setMaxLines(2);
         label.setEllipsize(android.text.TextUtils.TruncateAt.END);

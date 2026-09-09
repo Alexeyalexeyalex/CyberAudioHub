@@ -212,6 +212,10 @@ public class PlaybackService extends Service {
         listener = value;
     }
 
+    public void clearListener(Listener value) {
+        if (listener == value) listener = null;
+    }
+
     /** Загружает книгу целиком: адреса дорожек и их названия. */
     public void setBook(String title, String[] trackSources, String[] trackNames,
                         String sessionCookie) {

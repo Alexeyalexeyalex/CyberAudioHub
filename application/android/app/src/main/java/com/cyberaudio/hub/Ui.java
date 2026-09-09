@@ -229,7 +229,7 @@ public final class Ui {
                 new com.google.android.material.bottomnavigation.BottomNavigationView(activity);
         nav.setBackgroundColor(SURFACE);
         nav.setElevation(dp(activity, 8));
-        nav.setLabelVisibilityMode(1);
+        nav.setLabelVisibilityMode(com.google.android.material.navigation.NavigationBarView.LABEL_VISIBILITY_LABELED);
         String[] labels = {"Медиатека", "Папки", "Скачано", "Профиль"};
         for (int i = 0; i < labels.length; i++) {
             nav.getMenu().add(0, i + 1, i, labels[i]).setIcon(new HubIcon(i, DIM, dp(activity, 24)));

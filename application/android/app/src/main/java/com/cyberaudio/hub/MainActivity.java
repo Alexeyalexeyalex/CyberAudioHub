@@ -41,8 +41,15 @@ public class MainActivity extends AppCompatActivity {
         api = new Api(this);
 
         LinearLayout box = Ui.column(this);
-        Ui.add(box, Ui.title(this, "CyberAudio Hub"), 4);
-        Ui.add(box, Ui.label(this, "Ваша коллекция из будущего", Ui.SECONDARY, 14), 24);
+        LinearLayout welcome = new LinearLayout(this);
+        welcome.setOrientation(LinearLayout.VERTICAL);
+        welcome.setBackground(Ui.hero(this));
+        int pad = Ui.dp(this, 24);
+        welcome.setPadding(pad, pad, pad, pad);
+        Ui.add(welcome, Ui.label(this, "ВКЛЮЧИТЕ СВОЮ ИСТОРИЮ", Ui.SECONDARY, 11), 20);
+        Ui.add(welcome, Ui.title(this, "Мир за пределами обычного."), 14);
+        Ui.add(welcome, Ui.label(this, "Любимые книги. Ваш ритм.", Ui.DIM, 15), 0);
+        Ui.add(box, welcome, 26);
 
         serverField = Ui.field(this, "Адрес сервера, например 192.168.1.5:2077");
         serverField.setText(api.server());
@@ -60,7 +67,7 @@ public class MainActivity extends AppCompatActivity {
                 | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         Ui.add(box, passwordField, 16);
 
-        submit = Ui.button(this, "Войти", Ui.PRIMARY);
+        submit = Ui.button(this, "Войти", Ui.PRIMARY, true);
         submit.setOnClickListener(v -> send());
         Ui.add(box, submit, 8);
 
@@ -82,7 +89,7 @@ public class MainActivity extends AppCompatActivity {
         ScrollView scroll = new ScrollView(this);
         scroll.setBackgroundColor(Ui.DARK);
         scroll.addView(box);
-        setContentView(scroll);
+        Ui.screen(this, scroll, -1);
 
         // Уже входили — сразу на полку, спрашивать пароль второй раз незачем
         if (api.hasServer() && api.isSignedIn()) {

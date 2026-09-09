@@ -229,6 +229,38 @@ public class Api {
         return request("GET", "/api/me", null);
     }
 
+    public JSONObject recommendation() throws IOException {
+        return request("GET", "/api/recommendation", null);
+    }
+
+    public JSONObject updateProfile(JSONObject fields) throws IOException {
+        return request("PATCH", "/api/me", fields);
+    }
+
+    public JSONObject friends(String query) throws IOException {
+        return request("GET", query.isEmpty() ? "/api/friends"
+                : "/api/friends/search?q=" + URLEncoder.encode(query, "UTF-8"), null);
+    }
+
+    public void friendship(int id, String action) throws IOException {
+        try {
+            request(action.equals("delete") ? "DELETE" : "POST", "/api/friends",
+                    new JSONObject().put("id", id).put("action", action));
+        } catch (JSONException e) { throw new IOException(e); }
+    }
+
+    public JSONObject compareAchievements(int id) throws IOException {
+        return request("GET", "/api/friends/" + id + "/achievements", null);
+    }
+
+    public void requestTranscript(String path) throws IOException {
+        request("POST", "/api/transcript/request", field("path", path));
+    }
+
+    public void renameFolder(int id, String name) throws IOException {
+        request("PATCH", "/api/folders/" + id, field("name", name));
+    }
+
     public void logout() {
         try {
             request("POST", "/api/auth/logout", null);
