@@ -1124,6 +1124,21 @@ def ready_text_paths(conn):
             if row['status'] in ('done', 'running')}
 
 
+@app.route('/api/recommendation')
+def api_recommendation():
+    """Новая книга из доступного каталога; история берётся только у владельца."""
+    paths = [path for path in all_album_paths() if path]
+    if not paths:
+        return jsonify({"book": None})
+    user = current_user()
+    progress = {row['path']: row for row in database.list_progress(get_db(), user['id'])} if user else {}
+    unseen = [path for path in paths if path not in progress]
+    unfinished = [path for path in paths if path in progress and not progress[path]['finished']]
+    selected = secrets.choice(unseen or unfinished or paths)
+    return jsonify({"book": album_card(selected, ready_text_paths(get_db())),
+                    "reason": "Новая история для вас" if selected not in progress else "На вашей волне"})
+
+
 @app.route('/api/search')
 def api_search():
     """

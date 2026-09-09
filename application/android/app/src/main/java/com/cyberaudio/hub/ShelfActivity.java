@@ -38,7 +38,9 @@ public class ShelfActivity extends AppCompatActivity {
     public static final String EXTRA_START = "start";
 
     /** Сколько обложек помещается в ряд. */
-    private static final int COLUMNS = 3;
+    private int columns;
+    private LinearLayout recommendation;
+    private int requestVersion;
 
     private final ExecutorService pool = Executors.newSingleThreadExecutor();
     private Api api;
@@ -77,8 +79,13 @@ public class ShelfActivity extends AppCompatActivity {
         api = new Api(this);
         store = new Store(this);
         offline = getIntent().getBooleanExtra(EXTRA_OFFLINE, false);
+        columns = Math.max(2, getResources().getConfiguration().screenWidthDp / 180);
 
         LinearLayout box = Ui.column(this);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(Ui.DARK);
+        root.setFitsSystemWindows(true);
 
         // Заголовок и шестерёнка в одной строке: настройки нужны редко,
         // но должны быть под рукой — в том числе когда сервер не отвечает
@@ -92,7 +99,13 @@ public class ShelfActivity extends AppCompatActivity {
         gear.setOnClickListener(v -> startActivity(
                 new Intent(this, SettingsActivity.class)));
         head.addView(gear);
-        Ui.add(box, head, 4);
+        head.setPadding(Ui.dp(this, 20), Ui.dp(this, 8), Ui.dp(this, 12), Ui.dp(this, 8));
+        root.addView(head);
+
+        recommendation = new LinearLayout(this);
+        recommendation.setOrientation(LinearLayout.VERTICAL);
+        recommendation.setVisibility(View.GONE);
+        Ui.add(box, recommendation, 20);
 
         crumbs = Ui.label(this, "", Ui.DIM, 13);
         Ui.add(box, crumbs, 10);
@@ -109,23 +122,11 @@ public class ShelfActivity extends AppCompatActivity {
         // спрятанную за краем кнопку никто не ищет. Подписи мельче, зато
         // все четыре видны сразу.
         onlineTools = Ui.row(this);
-        if (!offline) {
-            onlineTools.addView(tool("Скачанное", v -> {
-                Intent intent = new Intent(this, ShelfActivity.class);
-                intent.putExtra(EXTRA_OFFLINE, true);
-                startActivity(intent);
-            }));
-            onlineTools.addView(tool("Папки", v -> startActivity(
-                    new Intent(this, FoldersActivity.class))));
-            onlineTools.addView(tool("Достижения", v -> startActivity(
-                    new Intent(this, AchievementsActivity.class))));
-            onlineTools.addView(tool("Статистика", v -> startActivity(
-                    new Intent(this, StatsActivity.class))));
-        }
-        Ui.add(box, onlineTools, 12);
+        onlineTools.addView(Ui.navigation(this, offline ? 2 : 0),
+                new LinearLayout.LayoutParams(-1, -2));
 
-        if (!offline) {
-            searchField = Ui.field(this, "Поиск по медиатеке");
+        {
+            searchField = Ui.field(this, offline ? "Поиск в скачанном" : "Найти свою историю");
             searchField.setSingleLine(true);
             searchField.addTextChangedListener(new android.text.TextWatcher() {
                 @Override
@@ -155,7 +156,8 @@ public class ShelfActivity extends AppCompatActivity {
                     @Override
                     public void onItemSelected(android.widget.AdapterView<?> parent,
                                                View view, int position, long id) {
-                        if (offline) showDownloaded();
+                        if (list == null) return;
+                        if (offline || serverDown) showDownloaded();
                         else if (shown != null) fillGrid(shown);
                     }
 
@@ -172,7 +174,9 @@ public class ShelfActivity extends AppCompatActivity {
         ScrollView scroll = new ScrollView(this);
         scroll.setBackgroundColor(Ui.DARK);
         scroll.addView(box);
-        setContentView(scroll);
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+        root.addView(onlineTools, new LinearLayout.LayoutParams(-1, -2));
+        setContentView(root);
 
         // Внутри папки приложение ходит одним экраном, поэтому у системной
         // «назад» нет своей истории — и она закрывала приложение прямо из
@@ -204,6 +208,7 @@ public class ShelfActivity extends AppCompatActivity {
         } else {
             load(orEmpty(getIntent().getStringExtra(EXTRA_START)));
             loadProgress();
+            loadRecommendation();
             // Спрашиваем про новую версию один раз при открытии полки,
             // а не на каждом экране: чаще — навязчиво
             Updates.check(this, api);
@@ -254,6 +259,7 @@ public class ShelfActivity extends AppCompatActivity {
     // --- Сеть ---
 
     private void load(String target) {
+        final int version = ++requestVersion;
         crumbs.setText("Загружаю...");
         pool.execute(() -> {
             JSONObject data = null;
@@ -266,6 +272,7 @@ public class ShelfActivity extends AppCompatActivity {
             JSONObject finalData = data;
             String finalError = error;
             runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed() || version != requestVersion) return;
                 if (finalError != null) {
                     showWithoutServer(finalError);
                     return;
@@ -289,9 +296,10 @@ public class ShelfActivity extends AppCompatActivity {
         serverDown = true;
         shown = null;
         onlineTools.setVisibility(View.GONE);
+        recommendation.setVisibility(View.GONE);
         if (searchField != null) {
             searchField.setText("");
-            searchField.setVisibility(View.GONE);
+            searchField.setHint("Поиск в скачанном");
         }
         // Очистка строки поиска сама просит перезагрузить каталог — а его
         // сейчас неоткуда взять, и подпись успевала смениться обратно
@@ -303,6 +311,8 @@ public class ShelfActivity extends AppCompatActivity {
     }
 
     private void show(JSONObject data) {
+        recommendation.setVisibility(path.isEmpty() && recommendation.getChildCount() > 0
+                ? View.VISIBLE : View.GONE);
         crumbs.setText(path.isEmpty() ? "Медиатека" : path);
         refreshUpButton();
 
@@ -345,6 +355,7 @@ public class ShelfActivity extends AppCompatActivity {
                 if (searchField != null && searchField.getText().length() > 0) {
                     searchField.setText("");
                 }
+                typing.removeCallbacksAndMessages(null);
                 load(itemPath);
             }));
         }
@@ -422,6 +433,10 @@ public class ShelfActivity extends AppCompatActivity {
      */
     private void onSearchTyped(String query) {
         typing.removeCallbacksAndMessages(null);
+        requestVersion++;
+        if (offline || serverDown) { showDownloaded(); return; }
+        recommendation.setVisibility(query.isEmpty() && path.isEmpty()
+                && recommendation.getChildCount() > 0 ? View.VISIBLE : View.GONE);
         if (query.length() < 2) {
             // Строку очистили — возвращаем обычный каталог
             if (query.isEmpty()) typing.postDelayed(() -> load(path), 200);
@@ -431,6 +446,7 @@ public class ShelfActivity extends AppCompatActivity {
     }
 
     private void runSearch(String query) {
+        final int version = ++requestVersion;
         crumbs.setText("Ищу...");
         pool.execute(() -> {
             JSONObject data = null;
@@ -443,6 +459,7 @@ public class ShelfActivity extends AppCompatActivity {
             JSONObject finalData = data;
             String finalError = error;
             runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed() || version != requestVersion) return;
                 if (finalError != null) {
                     crumbs.setText(finalError);
                     return;
@@ -522,6 +539,8 @@ public class ShelfActivity extends AppCompatActivity {
         for (int i = 0; i < books.length(); i++) {
             JSONObject book = books.optJSONObject(i);
             if (book == null) continue;
+            String query = searchField.getText().toString().trim().toLowerCase(java.util.Locale.ROOT);
+            if (!book.optString("title").toLowerCase(java.util.Locale.ROOT).contains(query)) continue;
             // Скачанное хранится под title, а сортировка смотрит на name
             order.add(book);
         }
@@ -544,6 +563,8 @@ public class ShelfActivity extends AppCompatActivity {
         Intent intent = new Intent(this, PlayerActivity.class);
         intent.putExtra(PlayerActivity.EXTRA_PATH, bookPath);
         intent.putExtra(PlayerActivity.EXTRA_TITLE, title);
+        JSONObject saved = store.find(bookPath);
+        if (saved != null) intent.putExtra(PlayerActivity.EXTRA_COVER, saved.optString("cover"));
         intent.putExtra(PlayerActivity.EXTRA_OFFLINE, true);
         startActivity(intent);
     }
@@ -552,18 +573,18 @@ public class ShelfActivity extends AppCompatActivity {
 
     /** Раскладывает ячейки рядами по COLUMNS, подчёркивая каждый ряд полкой. */
     private void fillShelves(LinearLayout host, List<View> cells) {
-        for (int start = 0; start < cells.size(); start += COLUMNS) {
+        for (int start = 0; start < cells.size(); start += columns) {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
-            for (int i = start; i < Math.min(start + COLUMNS, cells.size()); i++) {
+            for (int i = start; i < Math.min(start + columns, cells.size()); i++) {
                 LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                         0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-                params.setMargins(Ui.dp(this, 4), 0, Ui.dp(this, 4), 0);
+                params.setMargins(Ui.dp(this, 5), 0, Ui.dp(this, 5), 0);
                 row.addView(cells.get(i), params);
             }
             // Неполный ряд дополняем пустотой: иначе две книги растянулись бы
             // на всю ширину и выглядели крупнее соседей сверху
-            for (int i = cells.size(); i < start + COLUMNS; i++) {
+            for (int i = cells.size(); i < start + columns; i++) {
                 row.addView(new View(this),
                         new LinearLayout.LayoutParams(0, 1, 1f));
             }
@@ -571,8 +592,6 @@ public class ShelfActivity extends AppCompatActivity {
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT));
 
-            host.addView(shelfEdge(), new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 2)));
             host.addView(new View(this), new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 18)));
         }
@@ -599,14 +618,17 @@ public class ShelfActivity extends AppCompatActivity {
         art.setScaleType(ImageView.ScaleType.CENTER_CROP);
         // Обложки бывают любых пропорций, поэтому держим квадрат: иначе
         // полка идёт «лесенкой» и ряды перестают читаться как ряды
-        int side = Ui.dp(this, 104);
-        item.addView(art, new LinearLayout.LayoutParams(side, side));
+        int side = Ui.dp(this, (getResources().getConfiguration().screenWidthDp - 32) / columns - 10);
+        art.setBackground(Ui.card(this, 0));
+        art.setClipToOutline(true);
+        item.addView(art, new LinearLayout.LayoutParams(-1, side));
         if (cover != null && !cover.isEmpty()) {
             Covers.into(art, api, cover, getCacheDir());
         }
 
-        TextView label = Ui.label(this, name, Ui.TEXT, 12);
-        label.setGravity(Gravity.CENTER_HORIZONTAL);
+        TextView label = Ui.label(this, name, Ui.TEXT, 15);
+        label.setTypeface(label.getTypeface(), android.graphics.Typeface.BOLD);
+        label.setGravity(Gravity.START);
         label.setMaxLines(2);
         label.setEllipsize(android.text.TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams text = new LinearLayout.LayoutParams(
@@ -621,6 +643,49 @@ public class ShelfActivity extends AppCompatActivity {
             item.addView(hint);
         }
         return item;
+    }
+
+    private void loadRecommendation() {
+        pool.execute(() -> {
+            try {
+                JSONObject book = api.recommendation().optJSONObject("book");
+                if (book == null) return;
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    recommendation.removeAllViews();
+                    LinearLayout hero = Ui.row(this);
+                    hero.setBackground(Ui.hero(this));
+                    int pad = Ui.dp(this, 18);
+                    hero.setPadding(pad, pad, pad, pad);
+                    LinearLayout copy = new LinearLayout(this);
+                    copy.setOrientation(LinearLayout.VERTICAL);
+                    Ui.add(copy, Ui.label(this, "НА ВАШЕЙ ВОЛНЕ", Ui.SECONDARY, 11), 10);
+                    TextView name = Ui.title(this, book.optString("name"));
+                    name.setTextSize(21);
+                    name.setMaxLines(3);
+                    name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                    Ui.add(copy, name, 16);
+                    copy.addView(Ui.label(this, "Слушать историю  →", Ui.PRIMARY, 13));
+                    hero.addView(copy, new LinearLayout.LayoutParams(0, -2, 1f));
+                    ImageView art = new ImageView(this);
+                    art.setImageResource(R.drawable.cover_placeholder);
+                    art.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                    art.setBackground(Ui.card(this, 0));
+                    art.setClipToOutline(true);
+                    LinearLayout.LayoutParams size = new LinearLayout.LayoutParams(Ui.dp(this, 112), Ui.dp(this, 142));
+                    size.leftMargin = Ui.dp(this, 12);
+                    hero.addView(art, size);
+                    Covers.into(art, api, book.optString("cover"), getCacheDir());
+                    hero.setOnClickListener(v -> {
+                        pendingCover = book.optString("cover");
+                        load(book.optString("path"));
+                    });
+                    recommendation.addView(hero);
+                    recommendation.setVisibility(!serverDown && path.isEmpty()
+                            && searchField.getText().length() == 0 ? View.VISIBLE : View.GONE);
+                });
+            } catch (Exception ignored) { /* Старые серверы работают без рекомендации. */ }
+        });
     }
 
     // --- Мелочи ---

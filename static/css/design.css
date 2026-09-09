@@ -536,6 +536,59 @@ body.is-text-mode .transcript-toolbar {
     .reader-scroll-top { right: 14px; bottom: 14px; min-width: 44px; padding: 0 13px; }
 }
 
+/* Рекомендация: прежний диск оживает только после загрузки обложки и задержки. */
+.audio-orbit__disc { position: relative; text-decoration: none; }
+.audio-orbit__disc[href] { cursor: pointer; }
+.audio-orbit__cover { position: absolute; left: 28.5%; top: 28.5%; width: 43%; height: 43%; object-fit: cover; border-radius: 50%; box-shadow: 0 0 0 1px #efcfff40, 0 5px 20px #08031288; }
+.audio-orbit__cover[hidden] { display: none; }
+.has-recommendation .audio-orbit__disc > i { opacity: 0; }
+.has-recommendation .audio-orbit__disc { animation: recommendation-spin 22s linear infinite; }
+.has-recommendation .audio-orbit__caption { max-width: 260px; text-align: center; color: #edd4f1; font-size: 12px; letter-spacing: .2px; bottom: -8px; line-height: 1.4; }
+.audio-orbit__disc:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 7px; }
+@keyframes recommendation-spin { from { transform: rotate(-16deg); } to { transform: rotate(344deg); } }
+@media (max-width: 520px) {
+    .audio-orbit { position: relative; width: 170px; height: 184px; right: auto; bottom: auto; margin: 18px auto 0; opacity: 1; }
+    .audio-orbit__caption { display: block; }
+    .has-recommendation .audio-orbit__caption { bottom: -6px; font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .has-recommendation .audio-orbit__disc { animation: none; }
+}
+
+/* Праздничные палитры связаны с карточками, навигацией и диском. */
+body.theme-newyear { --secondary-color: #a5d6ff; --season-light: #bcecff; --season-fill: #1b3b50; }
+body.theme-valentine { --secondary-color: #f69ecb; --season-light: #ffb4d9; --season-fill: #48263d; }
+body.theme-spring { --secondary-color: #b6e7ae; --season-light: #d0f5b7; --season-fill: #284137; }
+body:is(.theme-newyear, .theme-valentine, .theme-spring) .library-hero h1 em { color: var(--season-light); }
+body:is(.theme-newyear, .theme-valentine, .theme-spring) .navigation-link[aria-current] { background: var(--season-fill); color: var(--season-light); }
+body:is(.theme-newyear, .theme-valentine, .theme-spring) .audio-orbit__disc > i { color: var(--season-light); }
+body:is(.theme-newyear, .theme-valentine, .theme-spring) .library-hero { overflow: hidden; }
+body:is(.theme-newyear, .theme-valentine, .theme-spring) .library-hero::after { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; }
+body.theme-newyear .library-hero {
+    background: radial-gradient(ellipse at 86% 30%, #427e884d, transparent 56%), linear-gradient(120deg, #151e34, #162c3c 64%, #1b1739);
+    border-color: #bcecff2e;
+    box-shadow: inset 0 1px 0 #dff8ff26, 0 12px 40px #030b1b36;
+}
+body.theme-newyear .library-hero::after {
+    background: radial-gradient(circle at 78% 16%, #f2ffff 0 1px, transparent 2px), radial-gradient(circle at 62% 73%, #bcf1ff 0 1px, transparent 2px), radial-gradient(circle at 92% 64%, #fff 0 1.5px, transparent 3px), radial-gradient(circle at 71% 46%, #b8ceff 0 1px, transparent 2px), linear-gradient(112deg, transparent 64%, #a5e6ff0c 65%, transparent 67%);
+}
+body.theme-newyear .audio-orbit__ring { border-color: #c5eaff55; box-shadow: 0 0 28px #96c8ff20; }
+.theme-aurora { position: absolute; inset: -30% -15% 30%; background: conic-gradient(from 195deg at 62% 0%, transparent 15deg, #48e9d126 38deg, #9caaff30 62deg, transparent 92deg); filter: blur(50px); transform-origin: 60% 0; animation: season-drift 18s ease-in-out infinite alternate; }
+body.theme-valentine .library-hero { background: radial-gradient(ellipse at 80% 50%, #ad54744d, transparent 57%), linear-gradient(120deg, #301627, #351b37 65%, #24172f); border-color: #ee9bb72e; }
+body.theme-valentine .library-hero::after { background: radial-gradient(ellipse at 88% 94%, #ffbeaa24, transparent 45%), radial-gradient(circle at 64% 17%, #ffdfa938, transparent 1%); }
+body.theme-valentine .audio-orbit__ring { border-color: #e98eb059; transform: rotate(-28deg) scale(1.05,.88); box-shadow: 0 0 40px #fa7eb216; }
+body.theme-valentine .audio-orbit__ring::after { background: #ffc4ca; box-shadow: 0 0 14px #ff8daf; }
+body.theme-valentine .theme-pulse { animation-duration: 5s; box-shadow: inset 0 0 140px 10px #bf4f7826; }
+.theme-rose-light { position: absolute; inset: 0; background: radial-gradient(ellipse at 2% 65%, #dc578a13, transparent 40%), radial-gradient(ellipse at 98% 12%, #fbb39b17, transparent 34%); animation: season-drift 16s ease-in-out infinite alternate; }
+body.theme-spring .library-hero { background: radial-gradient(ellipse at 83% 35%, #789f6c42, transparent 52%), linear-gradient(115deg, #162b2b, #25382f 60%, #211c32); border-color: #d1e7a72e; }
+body.theme-spring .library-hero::after {
+    background: radial-gradient(ellipse 13px 27px at 89% 18%, #e8cfb224, transparent 96%), radial-gradient(ellipse 25px 12px at 82% 78%, #b8efc330, transparent 96%), radial-gradient(ellipse 12px 23px at 67% 12%, #f2bcd529, transparent 96%), radial-gradient(ellipse at 100% 0, #f8e8a21a, transparent 48%);
+}
+body.theme-spring .audio-orbit__ring { border-color: #c6e5a844; box-shadow: 0 0 25px #a2e89a16; }
+body.theme-spring .audio-orbit__disc { background: radial-gradient(ellipse at 62% 18%, #abd28a26, transparent 48%), repeating-radial-gradient(circle at center, transparent 0 10px, #efffc209 11px 12px), #26362d; }
+.theme-garden-light { position: absolute; inset: -20%; background: linear-gradient(120deg, transparent 22%, #f3e6a413 36%, transparent 48%, #b6f6b011 72%, transparent 82%); transform: rotate(-8deg); animation: season-drift 22s ease-in-out infinite alternate; }
+@keyframes season-drift { to { transform: translate3d(3%, 3%, 0) rotate(5deg); opacity: .65; } }
+
 /* ========================================================================
    ХЭЛЛОУИН: кинематографичный наблюдатель и щупальца управления.
    Базовая тема остаётся узнаваемой, поэтому здесь нет тяжёлой плашки
@@ -702,62 +755,79 @@ body.theme-halloween .theme-monster:focus-visible {
     outline-offset: 7px;
 }
 
-/* Каждая кнопка получает тонкие щупальца вокруг контура. SVG лежит в самом
-   контроле, но pointer-events:none гарантирует нормальное нажатие. */
-body.theme-halloween .theme-halloween-entwined {
+/* Два угловых ассета сохраняют пропорции и свободный центр кнопки.
+   Разрешены только крупный CTA, вход и активный раздел бокового меню. */
+body.theme-halloween :where(.library-hero .hero-link, .app-navigation .navigation-link[aria-current="page"], #guest-chip) {
+    position: relative;
     isolation: isolate;
-    overflow: visible !important;
 }
-body.theme-halloween .theme-halloween-entwined--positioned { position: relative; }
-body.theme-halloween .halloween-button-tentacles {
+body.theme-halloween .library-hero .hero-link {
+    min-height: 48px;
+    padding: 12px 22px;
+    border: 1px solid #ae697748;
+    border-radius: 14px;
+    background: linear-gradient(120deg, #382333, #25182b);
+    box-shadow: inset 0 1px 0 #ffc9ac12, 0 6px 18px #05020b30;
+}
+body.theme-halloween :where(.library-hero .hero-link, .app-navigation .navigation-link[aria-current="page"], #guest-chip)::before,
+body.theme-halloween .library-hero .hero-link::after {
+    content: '';
     position: absolute;
-    z-index: 4;
-    inset: -11px -15px;
-    display: block;
-    overflow: visible;
+    width: 76px;
+    height: 68px;
+    background: url('../assets/halloween/tentacle-corner.svg?v=20260909-2') center / contain no-repeat;
     pointer-events: none;
-    opacity: calc(0.66 + (var(--theme-intensity, 1) * 0.18));
-    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.58));
-    transform: rotate(-1deg);
-    transform-origin: center;
-    animation: halloween-tentacle-breathe 5.5s ease-in-out infinite alternate;
+    z-index: 2;
+    opacity: clamp(.65, calc(.72 + var(--theme-intensity, 1) * .16), 1);
+    filter: drop-shadow(0 2px 2px #03020b66);
 }
-body.theme-halloween .halloween-button-tentacles svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
+body.theme-halloween .library-hero .hero-link::before {
+    top: -12px;
+    left: -12px;
+    transform-origin: 20% 70%;
 }
-body.theme-halloween .halloween-tentacle {
-    fill: none;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+body.theme-halloween .library-hero .hero-link::after {
+    bottom: -13px;
+    right: -12px;
+    transform: rotate(180deg);
 }
-body.theme-halloween .halloween-tentacle--rear {
-    stroke: #2a0819;
-    stroke-width: 8;
+body.theme-halloween .app-navigation .navigation-link[aria-current="page"]::before {
+    top: -12px;
+    right: -9px;
+    width: 67px;
+    height: 60px;
+    transform: scaleX(-1);
 }
-body.theme-halloween .halloween-tentacle--front {
-    stroke: url(#halloween-flesh-gradient);
-    stroke: #6f2139;
-    stroke-width: 7;
+body.theme-halloween #guest-chip::before {
+    bottom: -10px;
+    right: -10px;
+    width: 60px;
+    height: 54px;
+    transform: rotate(180deg);
 }
-body.theme-halloween .halloween-tentacle--curl {
-    stroke: #9b3b4d;
-    stroke-width: 5.5;
+body.theme-halloween .app-navigation .navigation-link[aria-current="page"] i {
+    color: inherit;
 }
-body.theme-halloween .halloween-suckers circle {
-    fill: var(--halloween-sucker);
-    stroke: #4e1126;
-    stroke-width: 1.5;
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    body.theme-halloween .library-hero .hero-link:hover::before {
+        animation: halloween-curl-stir 3.8s ease-in-out infinite alternate;
+    }
 }
-@keyframes halloween-tentacle-breathe {
-    from { transform: rotate(-1deg) scale(0.985); }
-    to { transform: rotate(1.5deg) scale(1.015); }
+@keyframes halloween-curl-stir {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(-2deg); }
 }
-body.theme-halloween .theme-halloween-entwined:is(.control-btn, .mini-btn, .sync-btn, .user-panel__close, .auth-modal__close) .halloween-button-tentacles {
-    inset: -8px -10px;
-    opacity: 0.62;
+/* В компактной шапке и четырёхколоночном меню декору не хватает места. */
+@media (max-width: 800px) {
+    body.theme-halloween .app-navigation .navigation-link[aria-current="page"]::before,
+    body.theme-halloween #guest-chip::before {
+        display: none;
+    }
+    body.theme-halloween .library-hero .hero-link::before,
+    body.theme-halloween .library-hero .hero-link::after {
+        width: 65px;
+        height: 58px;
+    }
 }
 @media (max-width: 520px) {
     body.theme-halloween .theme-monster {
@@ -768,5 +838,4 @@ body.theme-halloween .theme-halloween-entwined:is(.control-btn, .mini-btn, .sync
     body.theme-halloween .theme-monster--left { right: auto; left: -202px; }
     body.theme-halloween .theme-monster.is-peeking { transform: translateX(-218px) rotate(-1deg); }
     body.theme-halloween .theme-monster--left.is-peeking { transform: translateX(218px) rotate(1deg) scaleX(-1); }
-    body.theme-halloween .halloween-button-tentacles { inset: -8px -10px; }
 }

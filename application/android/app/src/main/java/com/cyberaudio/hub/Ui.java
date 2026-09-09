@@ -33,11 +33,11 @@ public final class Ui {
 
     // Те же значения, что в static/css/style.css, блок :root
     public static final int PRIMARY = Color.parseColor("#00F2FF");
-    public static final int SECONDARY = Color.parseColor("#FF00FF");
+    public static final int SECONDARY = Color.parseColor("#E6ACF0");
     public static final int DARK = Color.parseColor("#0D041A");
-    public static final int SURFACE = Color.parseColor("#180D30");
-    public static final int TEXT = Color.parseColor("#E6E8F0");
-    public static final int DIM = Color.parseColor("#9EA3B5");
+    public static final int SURFACE = Color.parseColor("#1D162B");
+    public static final int TEXT = Color.parseColor("#F0EEF7");
+    public static final int DIM = Color.parseColor("#A7A1B8");
     /**
      * Уже прочитанный текст. На сайте это .word.is-spoken с прозрачностью
      * 0.45; здесь тот же цвет, посчитанный поверх тёмного фона, — гасить
@@ -70,7 +70,7 @@ public final class Ui {
     public static GradientDrawable card(Context context, int unusedStroke) {
         GradientDrawable shape = new GradientDrawable();
         shape.setColor(SURFACE);
-        shape.setCornerRadius(dp(context, 14));
+        shape.setCornerRadius(dp(context, 20));
         return shape;
     }
 
@@ -182,11 +182,11 @@ public final class Ui {
     public static TextView title(Context context, String text) {
         TextView view = new TextView(context);
         view.setText(text);
-        view.setTextColor(PRIMARY);
-        view.setTextSize(24);
-        view.setAllCaps(true);
-        // Неоновое свечение: у текста в Android есть своя тень, годится
-        view.setShadowLayer(dp(context, 8), 0, 0, PRIMARY);
+        view.setTextColor(TEXT);
+        view.setTextSize(28);
+        view.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
+        view.setLetterSpacing(-0.025f);
+        view.setAllCaps(false);
         return view;
     }
 
@@ -213,6 +213,56 @@ public final class Ui {
         box.setOrientation(LinearLayout.HORIZONTAL);
         box.setGravity(Gravity.CENTER_VERTICAL);
         return box;
+    }
+
+    public static GradientDrawable hero(Context context) {
+        GradientDrawable shape = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[]{Color.parseColor("#34203F"), Color.parseColor("#1C1730")});
+        shape.setCornerRadius(dp(context, 24));
+        return shape;
+    }
+
+    /** Нативная нижняя навигация с постоянными, подписанными разделами. */
+    public static com.google.android.material.bottomnavigation.BottomNavigationView navigation(
+            android.app.Activity activity, int selected) {
+        com.google.android.material.bottomnavigation.BottomNavigationView nav =
+                new com.google.android.material.bottomnavigation.BottomNavigationView(activity);
+        nav.setBackgroundColor(SURFACE);
+        nav.setElevation(dp(activity, 8));
+        nav.setLabelVisibilityMode(1);
+        String[] labels = {"Медиатека", "Папки", "Скачано", "Профиль"};
+        for (int i = 0; i < labels.length; i++) {
+            nav.getMenu().add(0, i + 1, i, labels[i]).setIcon(new HubIcon(i, DIM, dp(activity, 24)));
+        }
+        ColorStateList tint = new ColorStateList(
+                new int[][]{new int[]{android.R.attr.state_checked}, new int[]{}},
+                new int[]{PRIMARY, DIM});
+        nav.setItemIconTintList(tint);
+        nav.setItemTextColor(tint);
+        nav.setItemActiveIndicatorColor(ColorStateList.valueOf(Color.parseColor("#263B46")));
+        nav.setSelectedItemId(selected + 1);
+        nav.setOnItemSelectedListener(item -> {
+            int target = item.getItemId() - 1;
+            if (target == selected) return true;
+            Class<?> screen = target == 1 ? FoldersActivity.class
+                    : target == 3 ? ProfileActivity.class : ShelfActivity.class;
+            android.content.Intent intent = new android.content.Intent(activity, screen);
+            if (target == 2) intent.putExtra(ShelfActivity.EXTRA_OFFLINE, true);
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            activity.startActivity(intent);
+            return true;
+        });
+        return nav;
+    }
+
+    public static void screen(android.app.Activity activity, View content, int tab) {
+        LinearLayout root = new LinearLayout(activity);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(DARK);
+        root.setFitsSystemWindows(true);
+        root.addView(content, new LinearLayout.LayoutParams(-1, 0, 1f));
+        if (tab >= 0) root.addView(navigation(activity, tab), new LinearLayout.LayoutParams(-1, -2));
+        activity.setContentView(root);
     }
 
     /** Добавляет ребёнка с отступом снизу — чтобы не плодить LayoutParams. */

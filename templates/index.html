@@ -28,10 +28,13 @@
                 <p>Любимые книги, ваш ритм. Выберите историю<br class="desktop-break"> и погрузитесь в неё с первой главы.</p>
                 <a class="hero-link" href="#library-catalog">Открыть коллекцию <i class="fas fa-arrow-down" aria-hidden="true"></i></a>
             </div>
-            <div class="audio-orbit" aria-hidden="true">
+            <div class="audio-orbit" id="book-recommendation">
                 <div class="audio-orbit__ring"></div>
-                <div class="audio-orbit__disc"><i class="fas fa-headphones"></i></div>
-                <span class="audio-orbit__caption">НА ВАШЕЙ ВОЛНЕ</span>
+                <a class="audio-orbit__disc" id="recommendation-link" aria-label="Подбираем книгу">
+                    <i class="fas fa-headphones" aria-hidden="true"></i>
+                    <img class="audio-orbit__cover" id="recommendation-cover" alt="" hidden>
+                </a>
+                <span class="audio-orbit__caption" id="recommendation-caption" aria-live="polite">НА ВАШЕЙ ВОЛНЕ</span>
             </div>
         </header>
 
@@ -91,8 +94,9 @@
     </footer>
 
     <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/themes.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/themes.js', v='20260909-2') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/recommendation.js', v='20260909-3') }}"></script>
 </body>
 
 </html>

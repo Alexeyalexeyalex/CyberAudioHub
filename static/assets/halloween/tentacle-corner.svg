@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="112" height="100" viewBox="0 0 112 100" fill="none">
+  <defs>
+    <path id="arm" d="M5 96C0 79 0 42 12 23C24 4 46 0 64 5C83 10 93 24 83 33C76 40 64 34 68 26C70 22 76 22 78 26C75 23 70 26 73 29C77 33 83 29 81 25C76 15 59 16 45 18C31 20 25 30 23 47C20 63 25 83 29 96C24 100 12 101 5 96Z"/>
+    <linearGradient id="skin" x1="1" y1="38" x2="31" y2="51" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#190f27"/><stop offset=".2" stop-color="#50354e"/>
+      <stop offset=".4" stop-color="#9c636d"/><stop offset=".54" stop-color="#774654"/>
+      <stop offset=".78" stop-color="#382037"/><stop offset="1" stop-color="#160d21"/>
+    </linearGradient>
+    <radialGradient id="curlLight" cx="0" cy="0" r="1" gradientTransform="translate(48 6) rotate(88) scale(20 39)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ad727e"/><stop offset=".4" stop-color="#754957"/>
+      <stop offset="1" stop-color="#26192e" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="underside" x1="12" y1="49" x2="25" y2="51" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#592c43"/><stop offset=".52" stop-color="#c38a8e"/>
+      <stop offset=".8" stop-color="#996770"/><stop offset="1" stop-color="#47263d"/>
+    </linearGradient>
+    <radialGradient id="cup" cx=".36" cy=".26" r=".76">
+      <stop stop-color="#f0c5b5"/><stop offset=".3" stop-color="#cd9d9b"/>
+      <stop offset=".65" stop-color="#9c606f"/><stop offset="1" stop-color="#3d1d36"/>
+    </radialGradient>
+    <radialGradient id="hollow" cx=".6" cy=".75" r=".8">
+      <stop stop-color="#9d697a"/><stop offset=".52" stop-color="#4c263c"/>
+      <stop offset="1" stop-color="#170c22"/>
+    </radialGradient>
+    <pattern id="pores" width="11" height="13" patternUnits="userSpaceOnUse">
+      <ellipse cx="2" cy="3" rx=".7" ry="1.1" fill="#e7aaa3" opacity=".16"/>
+      <ellipse cx="8" cy="9" rx="1.1" ry=".65" fill="#0d0b1b" opacity=".25"/>
+      <circle cx="6" cy="2" r=".5" fill="#110f25" opacity=".3"/>
+      <circle cx="3" cy="10" r=".45" fill="#ecc0b3" opacity=".18"/>
+    </pattern>
+    <clipPath id="skinClip"><use href="#arm"/></clipPath>
+    <g id="sucker">
+      <ellipse cy="1" rx="4.7" ry="3.25" fill="#100b1b" opacity=".6"/>
+      <ellipse rx="4.3" ry="3.2" fill="url(#cup)"/>
+      <ellipse cy=".15" rx="2.55" ry="1.85" fill="url(#hollow)"/>
+      <path d="M-3.4 .2C-3.6-2.5 2.5-3.3 3.6-1" stroke="#ffdfca" stroke-opacity=".7" stroke-width=".55" stroke-linecap="round"/>
+      <path d="M-1.4 1.5Q0 2.3 1.6 1.4" stroke="#db9f9c" stroke-opacity=".45" stroke-width=".4"/>
+    </g>
+  </defs>
+  <use href="#arm" transform="translate(1.2 2.5)" fill="#03040c" opacity=".62"/>
+  <use href="#arm" fill="url(#skin)" stroke="#271329" stroke-width=".5"/>
+  <use href="#arm" fill="url(#curlLight)"/>
+  <path d="M20 97C14 75 12 49 20 30C27 12 46 8 63 11C74 13 85 22 80 28C76 34 70 30 73 27C71 32 78 32 81 28C86 19 71 13 60 14C42 13 30 20 26 34C20 56 24 79 28 97Z" fill="url(#underside)"/>
+  <g clip-path="url(#skinClip)">
+    <path d="M3 67Q8 65 13 69M3 73Q10 72 14 76M4 82Q10 80 16 83M4 49Q10 51 14 50M7 34Q12 38 18 37M23 10Q24 16 29 20M38 5Q38 10 40 15M52 5Q53 10 51 14" stroke="#1c1127" stroke-opacity=".35" stroke-width=".65"/>
+    <path d="M7 91C3 64 5 43 16 24C27 7 46 4 60 8" stroke="#d9b4ac" stroke-opacity=".46" stroke-width="1.1" stroke-linecap="round"/>
+    <path d="M7 74C5 61 7 49 9 42M17 24Q24 13 34 11M42 8Q48 7 52 8M67 12Q75 16 77 19" stroke="#ffe6ca" stroke-opacity=".55" stroke-width=".6" stroke-linecap="round"/>
+    <path d="M3 65Q1 42 12 24C22 8 41 0 61 5" stroke="#80e5e1" stroke-opacity=".28" stroke-width=".8"/>
+    <use href="#arm" fill="url(#pores)"/>
+  </g>
+  <g>
+    <use href="#sucker" transform="translate(20 90) rotate(-17) scale(1.06)"/>
+    <use href="#sucker" transform="translate(17.5 80) rotate(-10)"/>
+    <use href="#sucker" transform="translate(16.2 70) rotate(-3) scale(.92)"/>
+    <use href="#sucker" transform="translate(16.3 60) rotate(4) scale(.85)"/>
+    <use href="#sucker" transform="translate(18.1 50) rotate(11) scale(.79)"/>
+    <use href="#sucker" transform="translate(20.4 40.5) rotate(23) scale(.73)"/>
+    <use href="#sucker" transform="translate(24.6 31.7) rotate(37) scale(.67)"/>
+    <use href="#sucker" transform="translate(31.2 23.8) rotate(54) scale(.61)"/>
+    <use href="#sucker" transform="translate(39.4 18.3) rotate(70) scale(.55)"/>
+    <use href="#sucker" transform="translate(48.2 15.8) rotate(82) scale(.48)"/>
+    <use href="#sucker" transform="translate(57.1 15.1) rotate(97) scale(.42)"/>
+    <use href="#sucker" transform="translate(65.2 16.3) rotate(106) scale(.37)"/>
+    <use href="#sucker" transform="translate(72.4 19) rotate(123) scale(.31)"/>
+    <use href="#sucker" transform="translate(77.6 23.6) rotate(150) scale(.25)"/>
+  </g>
+</svg>
