@@ -1,7 +1,7 @@
 package com.cyberaudio.hub;
 
 import android.app.Activity;
-import android.app.AlertDialog;
+import androidx.appcompat.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -93,7 +93,7 @@ public final class Updates {
         String weight = size > 0
                 ? String.format(java.util.Locale.ROOT, " (%.1f МБ)", size / 1048576.0)
                 : "";
-        new AlertDialog.Builder(activity)
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(activity)
                 .setTitle("Есть новая версия")
                 .setMessage("Доступна версия " + name + weight
                         + ".\n\nСкачанные книги и прогресс сохранятся.")

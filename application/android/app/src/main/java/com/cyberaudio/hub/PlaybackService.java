@@ -75,6 +75,13 @@ public class PlaybackService extends Service {
     private Listener listener;
 
     private String bookTitle = "";
+    private String bookPath = "";
+    private String bookCover = "";
+    private Store store;
+    private History history;
+    private Api api;
+    private int resumeMillis;
+    private boolean playWhenReady;
     private String trackTitle = "";
     private String lastError = "";
     // Подготовлен ли плеер. Без этого признака duration() и position()
@@ -94,6 +101,9 @@ public class PlaybackService extends Service {
     public void onCreate() {
         super.onCreate();
         current = this;
+        store = new Store(this);
+        history = new History(this);
+        api = new Api(this);
         session = new MediaSessionCompat(this, "CyberAudioHub");
         session.setCallback(new MediaSessionCompat.Callback() {
             @Override
@@ -196,6 +206,7 @@ public class PlaybackService extends Service {
 
     @Override
     public void onDestroy() {
+        rememberPlayback();
         ticker.removeCallbacksAndMessages(null);
         releasePlayer();
         if (session != null) {
@@ -217,21 +228,58 @@ public class PlaybackService extends Service {
     }
 
     /** Загружает книгу целиком: адреса дорожек и их названия. */
-    public void setBook(String title, String[] trackSources, String[] trackNames,
+    public void setBook(String path, String title, String cover, String[] trackSources, String[] trackNames,
                         String sessionCookie) {
+        String nextPath = path == null ? "" : path;
+        boolean changed = !nextPath.equals(bookPath);
+        boolean useLocal = !changed && player != null && prepared && trackIndex < sources.length
+                && trackSources != null && trackIndex < trackSources.length
+                && sources[trackIndex].startsWith("http") && !trackSources[trackIndex].startsWith("http");
+        int localPosition = useLocal ? position() : 0;
+        boolean wasPlaying = isPlaying();
+        if (changed) {
+            rememberPlayback();
+            ticker.removeCallbacksAndMessages(null);
+            releasePlayer();
+            listener = null;
+            lastError = "";
+            playWhenReady = false;
+        }
+        bookPath = nextPath;
+        bookCover = cover == null ? "" : cover;
         bookTitle = title == null ? "" : title;
         sources = trackSources == null ? new String[0] : trackSources;
         names = trackNames == null ? new String[0] : trackNames;
         cookie = sessionCookie == null ? "" : sessionCookie;
+        if (changed) {
+            trackIndex = Math.max(0, Math.min(store.savedIndex(bookPath), sources.length - 1));
+            resumeMillis = Math.max(0, store.savedMillis(bookPath));
+            trackTitle = trackIndex < names.length ? names[trackIndex] : "";
+        }
+        if (useLocal) { loadTrack(trackIndex, localPosition); if (!wasPlaying) pause(); }
+        pushState();
     }
 
     public void play(int index) {
+        loadTrack(index, 0);
+    }
+
+    public void playAt(int index, int millis) {
+        loadTrack(index, millis);
+    }
+
+    private void loadTrack(int index, int offset) {
         if (index < 0 || index >= sources.length) return;
+        rememberPlayback();
+        ticker.removeCallbacksAndMessages(null);
         trackIndex = index;
         trackTitle = index < names.length ? names[index] : "";
         prepared = false;
         releasePlayer();
+        resumeMillis = Math.max(0, offset);
+        playWhenReady = true;
 
+        PlaybackLink.save(this, bookPath, bookTitle, bookCover, sources, names);
         player = new MediaPlayer();
         player.setAudioAttributes(new AudioAttributes.Builder()
                 .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
@@ -263,10 +311,14 @@ public class PlaybackService extends Service {
             player.setOnCompletionListener(mp -> next());
             player.setOnPreparedListener(mp -> {
                 lastError = "";
-                prepared = true;
-                mp.start();
-                pushState();
-                startTicker();
+                // Не воспроизводим начало главы, пока восстанавливается позиция.
+                if (resumeMillis > 0) {
+                    mp.setOnSeekCompleteListener(ready -> {
+                        ready.setOnSeekCompleteListener(null);
+                        startPrepared(ready);
+                    });
+                    mp.seekTo(Math.min(resumeMillis, Math.max(0, mp.getDuration() - 1)));
+                } else startPrepared(mp);
             });
             player.prepareAsync();
         } catch (IOException | IllegalArgumentException | IllegalStateException e) {
@@ -276,18 +328,29 @@ public class PlaybackService extends Service {
         pushState();
     }
 
+    private void startPrepared(MediaPlayer ready) {
+        if (ready != player) return;
+        prepared = true;
+        resumeMillis = 0;
+        if (playWhenReady) ready.start();
+        pushState();
+        if (playWhenReady) startTicker();
+    }
+
     public void resume() {
-        if (player != null) {
+        playWhenReady = true;
+        if (player != null && prepared) {
             player.start();
             startTicker();
-        } else if (sources.length > 0) {
-            play(trackIndex);
+        } else if (player == null && sources.length > 0) {
+            loadTrack(trackIndex, resumeMillis);
         }
         pushState();
     }
 
     public void pause() {
-        if (player != null && player.isPlaying()) player.pause();
+        playWhenReady = false;
+        if (isPlaying()) player.pause();
         ticker.removeCallbacksAndMessages(null);
         pushState();
     }
@@ -315,11 +378,13 @@ public class PlaybackService extends Service {
     }
 
     public void seekTo(int millis) {
-        if (player != null) player.seekTo(Math.max(0, millis));
+        if (player != null && prepared) player.seekTo(Math.max(0, millis));
         pushState();
     }
 
     public void stopEverything() {
+        rememberPlayback();
+        resumeMillis = position();
         releasePlayer();
         ticker.removeCallbacksAndMessages(null);
         // stopForeground(boolean) объявлен устаревшим с Android 13;
@@ -352,7 +417,7 @@ public class PlaybackService extends Service {
     }
 
     public int position() {
-        if (player == null || !prepared) return 0;
+        if (player == null || !prepared) return resumeMillis;
         try {
             return player.getCurrentPosition();
         } catch (IllegalStateException e) {
@@ -381,6 +446,24 @@ public class PlaybackService extends Service {
         return bookTitle;
     }
 
+    public String path() {
+        return bookPath;
+    }
+
+    // Сохранение принадлежит службе: оно продолжается и без открытого экрана.
+    private void rememberPlayback() {
+        if (!prepared || bookPath.isEmpty()) return;
+        int millis = position();
+        int length = duration();
+        store.savePosition(bookPath, trackIndex, millis);
+        if (length <= 0) return;
+        boolean tail = length - millis <= 10_000;
+        history.note(bookPath, bookTitle, bookCover, trackIndex, millis,
+                tail && trackIndex >= sources.length - 1);
+        if (tail) history.complete(bookPath, trackIndex);
+        history.flush(api, false);
+    }
+
     /** Что пошло не так на последней главе. Пусто — всё в порядке. */
     public String error() {
         return lastError;
@@ -392,6 +475,7 @@ public class PlaybackService extends Service {
         ticker.postDelayed(new Runnable() {
             @Override
             public void run() {
+                rememberPlayback();
                 if (listener != null) listener.onPlaybackChanged();
                 if (isPlaying()) ticker.postDelayed(this, 1000);
             }
@@ -421,6 +505,7 @@ public class PlaybackService extends Service {
 
     /** Обновляет метаданные, состояние и само уведомление. */
     private void pushState() {
+        rememberPlayback();
         boolean playing = isPlaying();
 
         session.setMetadata(new MediaMetadataCompat.Builder()
@@ -460,8 +545,7 @@ public class PlaybackService extends Service {
                         position(), 1.0f)
                 .build());
 
-        Intent open = new Intent(this, PlayerActivity.class)
-                .setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        Intent open = playerIntent();
         int flags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
 
         Notification note = new NotificationCompat.Builder(this, CHANNEL)
@@ -492,5 +576,16 @@ public class PlaybackService extends Service {
 
     public static void start(Context context) {
         context.startForegroundService(new Intent(context, PlaybackService.class));
+    }
+
+    public Intent playerIntent() {
+        return new Intent(this, PlayerActivity.class)
+                .setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                .putExtra(PlayerActivity.EXTRA_PATH, bookPath)
+                .putExtra(PlayerActivity.EXTRA_TITLE, bookTitle)
+                .putExtra(PlayerActivity.EXTRA_COVER, bookCover)
+                .putExtra(PlayerActivity.EXTRA_URLS, sources)
+                .putExtra(PlayerActivity.EXTRA_NAMES, names)
+                .putExtra(PlayerActivity.EXTRA_OFFLINE, store.isDownloaded(bookPath));
     }
 }

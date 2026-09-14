@@ -29,6 +29,12 @@ public final class HubIcon extends Drawable {
             canvas.drawLine(7, 10, 12, 15, ink); canvas.drawLine(17, 10, 12, 15, ink);
             Path p = new Path(); p.moveTo(4, 16); p.lineTo(4, 21); p.lineTo(20, 21); p.lineTo(20, 16);
             canvas.drawPath(p, ink);
+        } else if (kind == 4) {
+            canvas.drawCircle(12, 12, 10, ink);
+            canvas.drawCircle(12, 12, 3, ink);
+            canvas.drawArc(5, 5, 19, 19, 205, 65, false, ink);
+            canvas.drawArc(5, 5, 19, 19, 25, 65, false, ink);
+            canvas.drawPoint(12, 12, ink);
         } else {
             canvas.drawCircle(12, 8, 4, ink);
             canvas.drawArc(4, 13, 20, 27, 180, 180, false, ink);

@@ -2,7 +2,6 @@ package com.cyberaudio.hub;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.text.TextUtils;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -15,7 +14,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -48,12 +46,12 @@ public class Api {
      * внутренности, тогда как человеку нужно понять, что делать.
      */
     public static String describe(Exception e) {
-        if (e instanceof ApiException) return e.getMessage();
-        String text = e.getMessage() == null ? "" : e.getMessage().toLowerCase();
+        if (e instanceof ApiException || e instanceof SessionChangedException) return e.getMessage();
+        String text = e.getMessage() == null ? "" : e.getMessage().toLowerCase(java.util.Locale.ROOT);
         if (text.contains("failed to connect") || text.contains("econnrefused")
                 || text.contains("unreachable")) {
-            return "Сервер не отвечает. Проверьте, что он запущен, "
-                    + "а телефон в той же сети.";
+            return "Сервер не отвечает. Проверьте подключение к сети "
+                    + "и адрес сайта в настройках.";
         }
         if (text.contains("timeout") || text.contains("timed out")) {
             return "Сервер долго не отвечает. Проверьте связь.";
@@ -67,24 +65,34 @@ public class Api {
     private static final String PREFS = "cyberaudio";
     private static final int TIMEOUT = 20000;
 
-    private final SharedPreferences prefs;
-    private String base;
-    private String cookie;
+    private final AccountSession account;
 
     public Api(Context context) {
-        prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        base = prefs.getString("server", "");
-        cookie = prefs.getString("cookie", "");
+        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        account = new AccountSession(new AccountSession.Persistence() {
+            public String get(String key, String fallback) { return prefs.getString(key, fallback); }
+            public void put(Map<String, String> changes) {
+                SharedPreferences.Editor editor = prefs.edit();
+                for (Map.Entry<String, String> item : changes.entrySet()) {
+                    if (item.getValue() == null) editor.remove(item.getKey());
+                    else editor.putString(item.getKey(), item.getValue());
+                }
+                // A successful login is reported only after its state is on disk.
+                if (!editor.commit()) throw new IllegalStateException("Не удалось сохранить вход на телефоне");
+            }
+        });
     }
+
+    Api(AccountSession account) { this.account = account; }
 
     // --- Настройки ---
 
     public String server() {
-        return base;
+        return account.snapshot().server;
     }
 
     public boolean hasServer() {
-        return !TextUtils.isEmpty(base);
+        return !server().isEmpty();
     }
 
     /**
@@ -93,52 +101,43 @@ public class Api {
      * помнить про схему и слэши.
      */
     public void setServer(String raw) {
-        String value = raw == null ? "" : raw.trim();
-        if (!value.isEmpty() && !value.startsWith("http://") && !value.startsWith("https://")) {
-            value = "http://" + value;
-        }
-        while (value.endsWith("/")) {
-            value = value.substring(0, value.length() - 1);
-        }
-        base = value;
-        prefs.edit().putString("server", base).apply();
+        account.setServer(raw);
     }
 
     public boolean isSignedIn() {
-        return !TextUtils.isEmpty(cookie);
-    }
-
-    private void keepCookie(HttpURLConnection connection) {
-        Map<String, List<String>> headers = connection.getHeaderFields();
-        List<String> values = headers.get("Set-Cookie");
-        if (values == null) values = headers.get("set-cookie");
-        if (values == null) return;
-        for (String value : values) {
-            if (value.startsWith("session=")) {
-                // Храним только пару «имя=значение»: срок и флаги нам не нужны,
-                // приложение всё равно решает само, когда забыть вход
-                cookie = value.split(";", 2)[0];
-                prefs.edit().putString("cookie", cookie).apply();
-            }
-        }
+        return !cookieHeader().isEmpty();
     }
 
     public void forgetSession() {
-        cookie = "";
-        prefs.edit().remove("cookie").apply();
+        account.forget(false);
+    }
+
+    public JSONObject cachedProfile() {
+        try { return new JSONObject(account.cachedProfile()); }
+        catch (JSONException e) { return null; }
+    }
+
+    static class SessionChangedException extends IOException {
+        SessionChangedException() { super("Настройки входа изменились. Повторите действие."); }
     }
 
     // --- Низкий уровень ---
 
-    private HttpURLConnection open(String path) throws IOException {
-        if (TextUtils.isEmpty(base)) {
-            throw new ApiException("Не указан адрес сервера", 0);
-        }
-        HttpURLConnection connection = (HttpURLConnection) new URL(base + path).openConnection();
+    private static boolean isLoginRequest(String path) {
+        return path.equals("/api/auth/login") || path.equals("/api/auth/register");
+    }
+
+    private HttpURLConnection open(String path, AccountSession.Snapshot session) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) new URL(session.server + path).openConnection();
         connection.setConnectTimeout(TIMEOUT);
         connection.setReadTimeout(TIMEOUT);
-        if (!TextUtils.isEmpty(cookie)) {
-            connection.setRequestProperty("Cookie", cookie);
+        connection.setUseCaches(false);
+        connection.setInstanceFollowRedirects(false);
+        // Login is anonymous on the wire, but the old durable account remains
+        // intact until the new response is committed. Cache/process cleanup or
+        // a failed request must not turn a re-login attempt into a logout.
+        if (!session.cookie.isEmpty() && !isLoginRequest(path)) {
+            connection.setRequestProperty("Cookie", session.cookie);
         }
         return connection;
     }
@@ -154,7 +153,12 @@ public class Api {
 
     private JSONObject request(String method, String path, JSONObject body)
             throws IOException {
-        HttpURLConnection connection = open(path);
+        return request(method, path, body, account.snapshot());
+    }
+
+    private JSONObject request(String method, String path, JSONObject body, AccountSession.Snapshot session)
+            throws IOException {
+        HttpURLConnection connection = open(path, session);
         try {
             connection.setRequestMethod(method);
             if (body != null) {
@@ -168,8 +172,6 @@ public class Api {
             int status = connection.getResponseCode();
             String text = readAll(status >= 400
                     ? connection.getErrorStream() : connection.getInputStream());
-            keepCookie(connection);
-
             if (status >= 400) {
                 String message = "Ошибка " + status;
                 try {
@@ -181,7 +183,24 @@ public class Api {
                 throw new ApiException(message, status);
             }
             try {
-                return text.isEmpty() ? new JSONObject() : new JSONObject(text);
+                JSONObject data = text.isEmpty() ? new JSONObject() : new JSONObject(text);
+                boolean hasProfile = data.has("user") && (path.equals("/api/me") || path.startsWith("/api/auth/"));
+                JSONObject user = data.optJSONObject("user");
+                String cookie = SessionCookies.session(connection.getHeaderFields());
+                boolean accepted;
+                if (isLoginRequest(path)) {
+                    if (cookie == null || cookie.isEmpty() || user == null)
+                        throw new ApiException("Сервер не подтвердил новый вход. Повторите попытку.", status);
+                    accepted = account.acceptLogin(session, cookie, user.toString());
+                } else {
+                    accepted = account.accept(session, cookie, hasProfile, user == null ? null : user.toString());
+                    // Parallel requests can refresh the same account cookie.
+                    // Keep the successful catalogue/action response, but never
+                    // write its older cookie back or cross an account boundary.
+                    if (!accepted && !hasProfile && account.sameSignedInAccount(session)) accepted = true;
+                }
+                if (!accepted) throw new SessionChangedException();
+                return data;
             } catch (JSONException e) {
                 throw new ApiException("Непонятный ответ сервера", status);
             }
@@ -196,7 +215,7 @@ public class Api {
         try {
             JSONObject body = new JSONObject()
                     .put("login", login).put("password", password);
-            return request("POST", "/api/auth/login", body);
+            return request("POST", "/api/auth/login", body, account.beginLogin());
         } catch (JSONException e) {
             throw new ApiException("Не удалось собрать запрос", 0);
         }
@@ -208,7 +227,7 @@ public class Api {
             JSONObject body = new JSONObject()
                     .put("login", login).put("nickname", nickname)
                     .put("password", password);
-            return request("POST", "/api/auth/register", body);
+            return request("POST", "/api/auth/register", body, account.beginLogin());
         } catch (JSONException e) {
             throw new ApiException("Не удалось собрать запрос", 0);
         }
@@ -226,7 +245,12 @@ public class Api {
     }
 
     public JSONObject me() throws IOException {
-        return request("GET", "/api/me", null);
+        String origin = server();
+        try { return request("GET", "/api/me", null); }
+        catch (SessionChangedException e) {
+            if (!origin.equals(server())) throw e;
+            return request("GET", "/api/me", null);
+        }
     }
 
     public JSONObject recommendation() throws IOException {
@@ -262,18 +286,19 @@ public class Api {
     }
 
     public void logout() {
+        AccountSession.Snapshot previous = account.snapshot();
+        forgetSession();
         try {
-            request("POST", "/api/auth/logout", null);
+            request("POST", "/api/auth/logout", null, previous);
         } catch (IOException ignored) {
             // Не достучались — всё равно забываем вход на своей стороне
         }
-        forgetSession();
     }
 
     /** Содержимое папки медиатеки: вложенные папки, книги и дорожки. */
     public JSONObject browse(String path) throws IOException {
         String query = "";
-        if (!TextUtils.isEmpty(path)) {
+        if (path != null && !path.isEmpty()) {
             query = "?path=" + URLEncoder.encode(path, "UTF-8");
         }
         return request("GET", "/api/browse" + query, null);
@@ -318,7 +343,7 @@ public class Api {
 
     /** Статистика прослушивания. Пустой user — своя. */
     public JSONObject stats(String user) throws IOException {
-        String query = TextUtils.isEmpty(user)
+        String query = user == null || user.isEmpty()
                 ? "" : "?user=" + URLEncoder.encode(user, "UTF-8");
         return request("GET", "/api/stats" + query, null);
     }
@@ -362,23 +387,24 @@ public class Api {
      * но может быть относительным — тогда дописываем адрес сервера.
      */
     public HttpURLConnection openTrack(String url) throws IOException {
-        String full = url.startsWith("http") ? url : base + url;
+        AccountSession.Snapshot session = account.snapshot();
+        String full = url.startsWith("http") ? url : session.server + url;
         HttpURLConnection connection = (HttpURLConnection) new URL(full).openConnection();
         connection.setConnectTimeout(TIMEOUT);
         // Читать книгу дольше, чем говорить с API: файл может быть большим
         connection.setReadTimeout(120000);
-        if (!TextUtils.isEmpty(cookie)) {
-            connection.setRequestProperty("Cookie", cookie);
+        if (!session.cookie.isEmpty() && full.startsWith(session.server + "/")) {
+            connection.setRequestProperty("Cookie", session.cookie);
         }
         return connection;
     }
 
     /** Полный адрес дорожки — для проигрывания по сети, без скачивания. */
     public String trackUrl(String url) {
-        return url.startsWith("http") ? url : base + url;
+        return url.startsWith("http") ? url : server() + url;
     }
 
     public String cookieHeader() {
-        return cookie;
+        return account.snapshot().cookie;
     }
 }

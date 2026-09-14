@@ -43,6 +43,14 @@ public class ShelfActivity extends AppCompatActivity {
     private int requestVersion;
 
     private final ExecutorService pool = Executors.newSingleThreadExecutor();
+    private final ExecutorService cataloguePool = Executors.newSingleThreadExecutor();
+    private final android.os.Handler reconnectHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private ShelfRecovery recovery;
+    private boolean resumed, updatingSearch;
+    private int activeBrowseVersion;
+    private String displayedServer;
+    private LinearLayout connectionActions;
+    private Button reconnectButton, signInButton;
     private Api api;
     private Store store;
     private LinearLayout list;
@@ -79,6 +87,8 @@ public class ShelfActivity extends AppCompatActivity {
         api = new Api(this);
         store = new Store(this);
         offline = getIntent().getBooleanExtra(EXTRA_OFFLINE, false);
+        recovery = new ShelfRecovery(offline);
+        displayedServer = api.server();
         columns = Math.max(2, getResources().getConfiguration().screenWidthDp / 180);
 
         LinearLayout box = Ui.column(this);
@@ -109,6 +119,19 @@ public class ShelfActivity extends AppCompatActivity {
 
         crumbs = Ui.label(this, "", Ui.DIM, 13);
         Ui.add(box, crumbs, 10);
+
+        connectionActions = new LinearLayout(this);
+        connectionActions.setOrientation(LinearLayout.VERTICAL);
+        connectionActions.setVisibility(View.GONE);
+        reconnectButton = Ui.button(this, "Подключиться к серверу", Ui.PRIMARY, true);
+        reconnectButton.setOnClickListener(v -> load(path));
+        Ui.add(connectionActions, reconnectButton, 8);
+        signInButton = Ui.button(this, "Войти повторно", Ui.SECONDARY);
+        signInButton.setOnClickListener(v -> startActivity(new Intent(this, MainActivity.class)
+                .putExtra(MainActivity.EXTRA_REAUTH, true)));
+        signInButton.setVisibility(View.GONE);
+        Ui.add(connectionActions, signInButton, 8);
+        Ui.add(box, connectionActions, 8);
 
         // Кнопка «Наверх» живёт отдельной строкой: она про место в каталоге,
         // а не про раздел, и появляется только когда есть куда подниматься
@@ -259,27 +282,53 @@ public class ShelfActivity extends AppCompatActivity {
     // --- Сеть ---
 
     private void load(String target) {
+        if (activeBrowseVersion != 0) return;
+        reconnectHandler.removeCallbacksAndMessages(null);
         final int version = ++requestVersion;
-        crumbs.setText("Загружаю...");
-        pool.execute(() -> {
+        activeBrowseVersion = version;
+        final String origin = api.server();
+        reconnectButton.setEnabled(false);
+        reconnectButton.setText("Подключаюсь…");
+        if (!serverDown) crumbs.setText("Загружаю...");
+        cataloguePool.execute(() -> {
             JSONObject data = null;
-            String error = null;
+            Exception error = null;
             try {
                 data = api.browse(target);
             } catch (Exception e) {
-                error = Api.describe(e);
+                error = e;
             }
             JSONObject finalData = data;
-            String finalError = error;
+            Exception finalError = error;
             runOnUiThread(() -> {
-                if (isFinishing() || isDestroyed() || version != requestVersion) return;
+                if (isFinishing() || isDestroyed()) return;
+                if (activeBrowseVersion == version) {
+                    activeBrowseVersion = 0;
+                    reconnectButton.setEnabled(true);
+                    reconnectButton.setText("Подключиться к серверу");
+                }
+                if (version != requestVersion || !origin.equals(api.server())) {
+                    scheduleReconnect();
+                    return;
+                }
                 if (finalError != null) {
                     showWithoutServer(finalError);
                     return;
                 }
+                boolean recovered = serverDown;
+                recovery.connected();
                 serverDown = false;
+                connectionActions.setVisibility(View.GONE);
                 onlineTools.setVisibility(View.VISIBLE);
-                if (searchField != null) searchField.setVisibility(View.VISIBLE);
+                searchField.setVisibility(View.VISIBLE);
+                searchField.setHint("Найти свою историю");
+                if (recovered) {
+                    updatingSearch = true;
+                    searchField.setText("");
+                    updatingSearch = false;
+                    loadProgress();
+                    loadRecommendation();
+                }
                 path = target;
                 show(finalData);
             });
@@ -292,22 +341,45 @@ public class ShelfActivity extends AppCompatActivity {
      * прячем всё, что без сервера не работает, и оставляем скачанное: его
      * можно слушать прямо сейчас.
      */
-    private void showWithoutServer(String reason) {
+    private void showWithoutServer(Exception error) {
+        int status = error instanceof Api.ApiException ? ((Api.ApiException) error).status : 0;
+        recovery.failed(status);
         serverDown = true;
         shown = null;
         onlineTools.setVisibility(View.GONE);
         recommendation.setVisibility(View.GONE);
         if (searchField != null) {
+            updatingSearch = true;
             searchField.setText("");
+            updatingSearch = false;
             searchField.setHint("Поиск в скачанном");
         }
         // Очистка строки поиска сама просит перезагрузить каталог — а его
         // сейчас неоткуда взять, и подпись успевала смениться обратно
         // на «Загружаю...». Снимаем отложенный запрос
         typing.removeCallbacksAndMessages(null);
-        crumbs.setText(reason + " Показаны книги на телефоне.");
+        String reason = status == 401 ? "Сервер просит повторный вход."
+                : status == 403 ? "Сервер ограничил доступ к каталогу."
+                : error instanceof Api.SessionChangedException ? "Сеанс обновился. Переподключаюсь…"
+                : Api.describe(error);
+        JSONObject savedUser = api.cachedProfile();
+        crumbs.setText(reason + " Показаны книги на телефоне."
+                + (savedUser == null ? "" : "\nПрофиль сохранён: "
+                + savedUser.optString("nickname", savedUser.optString("login"))));
+        connectionActions.setVisibility(View.VISIBLE);
+        signInButton.setVisibility(status == 401 || status == 403 ? View.VISIBLE : View.GONE);
         refreshUpButton();
         showDownloaded();
+        scheduleReconnect();
+    }
+
+    private void scheduleReconnect() {
+        reconnectHandler.removeCallbacksAndMessages(null);
+        if (recovery.shouldRetry(resumed, activeBrowseVersion != 0)) {
+            reconnectHandler.postDelayed(() -> {
+                if (recovery.shouldRetry(resumed, activeBrowseVersion != 0)) load(path);
+            }, recovery.delayMillis());
+        }
     }
 
     private void show(JSONObject data) {
@@ -432,6 +504,7 @@ public class ShelfActivity extends AppCompatActivity {
      * успеет смениться.
      */
     private void onSearchTyped(String query) {
+        if (updatingSearch) return;
         typing.removeCallbacksAndMessages(null);
         requestVersion++;
         if (offline || serverDown) { showDownloaded(); return; }
@@ -482,6 +555,7 @@ public class ShelfActivity extends AppCompatActivity {
      * порядок на полке не обязан меняться, пока экран открыт.
      */
     private void loadProgress() {
+        final String origin = api.server();
         pool.execute(() -> {
             final JSONObject data;
             try {
@@ -501,6 +575,7 @@ public class ShelfActivity extends AppCompatActivity {
                 fresh.put(row.optString("path"), new long[]{when, left});
             }
             runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed() || !origin.equals(api.server())) return;
                 progress.clear();
                 progress.putAll(fresh);
                 if (shown != null) fillGrid(shown);
@@ -646,12 +721,13 @@ public class ShelfActivity extends AppCompatActivity {
     }
 
     private void loadRecommendation() {
+        final String origin = api.server();
         pool.execute(() -> {
             try {
                 JSONObject book = api.recommendation().optJSONObject("book");
                 if (book == null) return;
                 runOnUiThread(() -> {
-                    if (isFinishing() || isDestroyed()) return;
+                    if (isFinishing() || isDestroyed() || !origin.equals(api.server())) return;
                     recommendation.removeAllViews();
                     LinearLayout hero = Ui.row(this);
                     hero.setBackground(Ui.hero(this));
@@ -725,7 +801,18 @@ public class ShelfActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        resumed = true;
+        if (!displayedServer.equals(api.server())) {
+            displayedServer = api.server();
+            ++requestVersion;
+            activeBrowseVersion = 0;
+            path = "";
+            progress.clear();
+            recommendation.removeAllViews();
+            if (!offline) load("");
+        }
         if (offline || serverDown) showDownloaded();
+        if (!offline && serverDown && activeBrowseVersion == 0) load(path);
         // Каждый раз, когда человек возвращается на полку, пробуем отдать
         // накопленное: связь могла появиться, пока он слушал в дороге.
         // Делать это только при первом открытии было мало — приложение
@@ -733,9 +820,17 @@ public class ShelfActivity extends AppCompatActivity {
         new History(this).flush(api, true);
     }
 
+    @Override protected void onStop() {
+        resumed = false;
+        reconnectHandler.removeCallbacksAndMessages(null);
+        super.onStop();
+    }
+
     @Override
     protected void onDestroy() {
         typing.removeCallbacksAndMessages(null);
+        reconnectHandler.removeCallbacksAndMessages(null);
+        cataloguePool.shutdownNow();
         pool.shutdownNow();
         super.onDestroy();
     }

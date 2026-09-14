@@ -40,7 +40,7 @@ MAX_NICKNAME_LENGTH = 32
 
 app = Flask(__name__)
 MUSIC_FOLDER_ROOT = os.path.join(app.static_folder, 'music')
-DB_PATH = os.path.join(app.root_path, 'data', 'cyberaudio.db')
+DB_PATH = os.environ.get('CYBERAUDIO_DB_PATH') or os.path.join(app.root_path, 'data', 'cyberaudio.db')
 
 # База и ключ подписи сессий создаются при первом запуске
 database.init_db(DB_PATH)
@@ -797,6 +797,21 @@ def worker_required(view):
 
 
 # --- Маршруты страниц ---
+@app.after_request
+def persistent_player_shell(response):
+    """Keep audio outside the navigated page. APIs and access checks stay unchanged."""
+    pages = {'/', '/player', '/friends', '/achievements', '/stats', '/admin'}
+    if (request.method == 'GET' and request.path in pages
+            and response.status_code == 200 and response.mimetype == 'text/html'
+            and request.args.get('_view') != '1'
+            and request.headers.get('Sec-Fetch-Dest') != 'iframe'):
+        from urllib.parse import urlencode
+        args = request.args.to_dict(flat=False)
+        args['_view'] = ['1']
+        response.set_data(render_template('shell.html', frame_url=request.path + '?' + urlencode(args, doseq=True)))
+    return response
+
+
 @app.route('/')
 def index():
     return render_template('index.html')

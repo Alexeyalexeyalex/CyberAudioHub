@@ -10,5 +10,19 @@
         <item name="android:statusBarColor">@color/dark_bg</item>
         <item name="android:navigationBarColor">@color/dark_bg</item>
         <item name="android:textColor">@color/text</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.CyberAudio.Dialog</item>
+        <item name="colorSurface">#1D162B</item>
+        <item name="colorOnSurface">#F0EEF7</item>
+    </style>
+    <style name="ThemeOverlay.CyberAudio.Dialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="colorSurface">#1D162B</item>
+        <item name="colorOnSurface">#F0EEF7</item>
+        <item name="colorPrimary">#00F2FF</item>
+        <item name="android:textColorPrimary">#F0EEF7</item>
+        <item name="android:textColorSecondary">#A7A1B8</item>
+        <item name="shapeAppearanceMediumComponent">@style/Shape.CyberAudio.Dialog</item>
+    </style>
+    <style name="Shape.CyberAudio.Dialog" parent="ShapeAppearance.MaterialComponents.MediumComponent">
+        <item name="cornerSize">24dp</item>
     </style>
 </resources>

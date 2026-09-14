@@ -19,11 +19,18 @@ android {
         // РљРѕРґ РІРµСЂСЃРёРё вЂ” С†РµР»РѕРµ, СЂР°СЃС‚С‘С‚ СЃ РєР°Р¶РґС‹Рј РІС‹РїСѓСЃРєРѕРј: РёРјРµРЅРЅРѕ РµРіРѕ
         // СЃСЂР°РІРЅРёРІР°РµС‚ РїСЂРёР»РѕР¶РµРЅРёРµ, СЂРµС€Р°СЏ, РїСЂРµРґР»Р°РіР°С‚СЊ Р»Рё РѕР±РЅРѕРІР»РµРЅРёРµ.
         // РРјСЏ РІРµСЂСЃРёРё С‡РµР»РѕРІРµРє РІРёРґРёС‚ РІ РѕРєРЅРµ РѕР±РЅРѕРІР»РµРЅРёСЏ.
-        versionCode 6
-        versionName "1.4"
+        versionCode 14
+        versionName "1.7.5"
+        testInstrumentationRunner "com.cyberaudio.hub.LocalChecks"
     }
 
     buildTypes {
+        // Device UI checks use a separate package, never the reader's account.
+        qa {
+            initWith debug
+            applicationIdSuffix ".qa"
+            matchingFallbacks = ['debug']
+        }
         release {
             minifyEnabled false
         }

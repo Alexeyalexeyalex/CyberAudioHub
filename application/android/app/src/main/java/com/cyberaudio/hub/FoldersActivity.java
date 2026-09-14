@@ -165,14 +165,14 @@ public class FoldersActivity extends AppCompatActivity {
                         render();
                     });
             cell.setOnLongClickListener(v -> {
-                new android.app.AlertDialog.Builder(this).setTitle(folder.optString("name"))
+                new com.google.android.material.dialog.MaterialAlertDialogBuilder(this).setTitle(folder.optString("name"))
                         .setItems(new String[]{"Переименовать", "Изменить обложку на сайте", "Удалить"}, (d, option) -> {
                             if (option == 2) askDelete(folder);
                             else if (option == 1) SiteActivity.open(this, "/", "Мои папки");
                             else {
                                 android.widget.EditText field = Ui.field(this, "Название папки");
                                 field.setText(folder.optString("name"));
-                                new android.app.AlertDialog.Builder(this).setTitle("Название папки").setView(field)
+                                new com.google.android.material.dialog.MaterialAlertDialogBuilder(this).setTitle("Название папки").setView(field)
                                         .setPositiveButton("Сохранить", (dialog, which) -> {
                                             String name = field.getText().toString().trim();
                                             if (name.isEmpty()) return;
@@ -227,7 +227,7 @@ public class FoldersActivity extends AppCompatActivity {
 
     private void askName() {
         android.widget.EditText field = Ui.field(this, "Название папки");
-        new android.app.AlertDialog.Builder(this)
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                 .setTitle("Новая папка")
                 .setView(field)
                 .setPositiveButton("Создать", (d, w) -> {
@@ -255,7 +255,7 @@ public class FoldersActivity extends AppCompatActivity {
     }
 
     private void askDelete(JSONObject folder) {
-        new android.app.AlertDialog.Builder(this)
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                 .setTitle("Удалить папку?")
                 .setMessage("Папка «" + folder.optString("name")
                         + "» исчезнет и на сайте. Сами книги останутся на месте.")

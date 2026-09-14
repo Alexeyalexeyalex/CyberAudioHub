@@ -1,4 +1,4 @@
-/* Одна рекомендация на открытие страницы. Первые пять секунд — обычный диск. */
+/* Одна рекомендация на открытие страницы. Первая секунда — обычный диск. */
 document.addEventListener('DOMContentLoaded', () => {
     const orbit = document.getElementById('book-recommendation');
     if (!orbit) return;
@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!data.book || !data.book.path) return;
             const book = data.book;
             cover.onload = () => {
-                timer = setTimeout(() => reveal(book), Math.max(0, 5000 - (performance.now() - started)));
+                timer = setTimeout(() => reveal(book), Math.max(0, 1000 - (performance.now() - started)));
             };
             cover.onerror = () => {
                 cover.onerror = null;

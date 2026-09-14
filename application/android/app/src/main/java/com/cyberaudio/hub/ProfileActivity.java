@@ -15,6 +15,7 @@ public class ProfileActivity extends AppCompatActivity {
     private LinearLayout identity;
     private TextView note;
     private JSONObject person;
+    private int loadGeneration;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -63,44 +64,59 @@ public class ProfileActivity extends AppCompatActivity {
     @Override protected void onResume() { super.onResume(); load(); }
 
     private void load() {
+        final int generation = ++loadGeneration;
+        final String server = api.server();
+        renderIdentity(api.cachedProfile(), false, "Проверяю соединение…", false);
         pool.execute(() -> {
             try {
                 JSONObject user = api.me().optJSONObject("user");
                 runOnUiThread(() -> {
-                    if (isFinishing() || isDestroyed()) return;
-                    person = user;
-                    identity.removeAllViews();
-                    if (user == null) {
-                        identity.addView(Ui.label(this, "Войдите, чтобы сохранить свой прогресс", Ui.TEXT, 18));
-                        Button login = Ui.button(this, "Войти", Ui.PRIMARY, true);
-                        login.setOnClickListener(v -> {
-                            api.forgetSession();
-                            startActivity(new Intent(this, MainActivity.class));
-                            finish();
-                        });
-                        identity.addView(login);
-                        return;
-                    }
-                    Ui.add(identity, Ui.label(this, "НА ВАШЕЙ ВОЛНЕ", Ui.SECONDARY, 11), 10);
-                    Ui.add(identity, Ui.title(this, user.optString("nickname")), 4);
-                    Ui.add(identity, Ui.label(this, "@" + user.optString("login"), Ui.DIM, 14), 16);
-                    Button edit = Ui.button(this, "Изменить профиль", Ui.PRIMARY);
-                    edit.setOnClickListener(v -> editProfile());
-                    Ui.add(identity, edit, 8);
-                    if (user.optBoolean("is_admin")) {
-                        Button admin = Ui.button(this, "Админ-панель", Ui.SECONDARY);
-                        admin.setOnClickListener(v -> SiteActivity.open(this, "/admin", "Админ-панель"));
-                        Ui.add(identity, admin, 0);
-                    }
+                    if (isFinishing() || isDestroyed() || generation != loadGeneration || !server.equals(api.server())) return;
+                    renderIdentity(user == null ? api.cachedProfile() : user, user != null,
+                            user == null ? "Сервер не подтвердил вход. Войдите повторно." : "", user == null);
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
-                    if (isDestroyed()) return;
-                    identity.removeAllViews();
-                    identity.addView(Ui.label(this, Api.describe(e), Ui.DIM, 15));
+                    if (isDestroyed() || generation != loadGeneration || !server.equals(api.server())) return;
+                    JSONObject cached = api.cachedProfile();
+                    renderIdentity(cached, false, Api.describe(e)
+                            + (cached == null ? "" : "\nПоказаны сохранённые данные профиля."), !api.isSignedIn());
                 });
             }
         });
+    }
+
+    private void renderIdentity(JSONObject user, boolean verified, String status, boolean signIn) {
+        person = verified ? user : null;
+        identity.removeAllViews();
+        if (user != null) {
+            Ui.add(identity, Ui.label(this, verified ? "НА ВАШЕЙ ВОЛНЕ" : "СОХРАНЁННЫЙ ПРОФИЛЬ", Ui.SECONDARY, 11), 10);
+            Ui.add(identity, Ui.title(this, user.optString("nickname", user.optString("login"))), 4);
+            Ui.add(identity, Ui.label(this, "@" + user.optString("login"), Ui.DIM, 14), 16);
+        }
+        if (!status.isEmpty()) Ui.add(identity, Ui.label(this, status, Ui.DIM, 14), 12);
+        if (verified) {
+            Button edit = Ui.button(this, "Изменить профиль", Ui.PRIMARY);
+            edit.setOnClickListener(v -> editProfile());
+            Ui.add(identity, edit, 8);
+            if (user.optBoolean("is_admin")) {
+                Button admin = Ui.button(this, "Админ-панель", Ui.SECONDARY);
+                admin.setOnClickListener(v -> SiteActivity.open(this, "/admin", "Админ-панель"));
+                Ui.add(identity, admin, 0);
+            }
+        } else {
+            Button retry = Ui.button(this, "Обновить профиль", Ui.DIM);
+            retry.setOnClickListener(v -> load());
+            Ui.add(identity, retry, 8);
+            if (signIn) {
+                Button login = Ui.button(this, "Войти", Ui.PRIMARY, true);
+                login.setOnClickListener(v -> {
+                    startActivity(new Intent(this, MainActivity.class).putExtra(MainActivity.EXTRA_REAUTH, true));
+                    finish();
+                });
+                Ui.add(identity, login, 0);
+            }
+        }
     }
 
     private void editProfile() {
@@ -113,7 +129,7 @@ public class ProfileActivity extends AppCompatActivity {
         EditText next = Ui.field(this, "Новый пароль (необязательно)");
         current.setInputType(129); next.setInputType(129);
         Ui.add(fields, current, 12); Ui.add(fields, next, 0);
-        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(this)
+        androidx.appcompat.app.AlertDialog dialog = new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                 .setTitle("Ваш профиль").setView(fields)
                 .setPositiveButton("Сохранить", null).setNegativeButton("Отмена", null).create();
         dialog.setOnShowListener(d -> dialog.getButton(-1).setOnClickListener(v -> {

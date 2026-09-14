@@ -88,7 +88,7 @@ public class FriendsActivity extends AppCompatActivity {
             if (relation.equals("friends") || relation.equals("incoming") || relation.equals("outgoing")) {
                 Button remove = Ui.button(this, relation.equals("friends") ? "Удалить из друзей"
                         : relation.equals("incoming") ? "Отклонить" : "Отменить заявку", Ui.DIM);
-                remove.setOnClickListener(v -> new android.app.AlertDialog.Builder(this)
+                remove.setOnClickListener(v -> new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                         .setTitle(remove.getText()).setMessage(user.optString("nickname"))
                         .setPositiveButton("Подтвердить", (d, w) -> change(id, "delete"))
                         .setNegativeButton("Отмена", null).show());

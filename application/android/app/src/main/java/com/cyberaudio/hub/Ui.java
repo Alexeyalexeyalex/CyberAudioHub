@@ -230,9 +230,11 @@ public final class Ui {
         nav.setBackgroundColor(SURFACE);
         nav.setElevation(dp(activity, 8));
         nav.setLabelVisibilityMode(com.google.android.material.navigation.NavigationBarView.LABEL_VISIBILITY_LABELED);
-        String[] labels = {"Медиатека", "Папки", "Скачано", "Профиль"};
+        String[] labels = {"Медиатека", "Папки", "Плеер", "Скачано", "Профиль"};
+        int[] tabs = {0, 1, 4, 2, 3};
+        nav.setItemHorizontalTranslationEnabled(false);
         for (int i = 0; i < labels.length; i++) {
-            nav.getMenu().add(0, i + 1, i, labels[i]).setIcon(new HubIcon(i, DIM, dp(activity, 24)));
+            nav.getMenu().add(0, tabs[i] + 1, i, labels[i]).setIcon(new HubIcon(tabs[i], DIM, dp(activity, 24)));
         }
         ColorStateList tint = new ColorStateList(
                 new int[][]{new int[]{android.R.attr.state_checked}, new int[]{}},
@@ -243,6 +245,7 @@ public final class Ui {
         nav.setSelectedItemId(selected + 1);
         nav.setOnItemSelectedListener(item -> {
             int target = item.getItemId() - 1;
+            if (target == 4) { PlaybackLink.open(activity); return false; }
             if (target == selected) return true;
             Class<?> screen = target == 1 ? FoldersActivity.class
                     : target == 3 ? ProfileActivity.class : ShelfActivity.class;

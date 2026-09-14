@@ -1,0 +1,22 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Android 13+ themed icons tint the mark, not a solid background tile. -->
+    <group android:scaleX="0.58" android:scaleY="0.58"
+        android:translateX="16.88" android:translateY="16.88">
+        <path android:fillColor="#00000000" android:strokeColor="#FFFFFF"
+            android:strokeWidth="8" android:strokeLineCap="round"
+            android:pathData="M29,67 V58 a35,35 0,0 1,70 0 v9" />
+        <path android:fillColor="#FFFFFF"
+            android:pathData="M29,58 h8 v27 h-8 a8,8 0,0 1,-8 -8 V66 a8,8 0,0 1,8 -8 Z M99,58 h-8 v27 h8 a8,8 0,0 0,8 -8 V66 a8,8 0,0 0,-8 -8 Z" />
+        <path android:fillColor="#FFFFFF" android:fillAlpha="0.17"
+            android:strokeColor="#FFFFFF" android:strokeWidth="4"
+            android:strokeLineJoin="round"
+            android:pathData="M45,61 c8,0 13,4 19,9 6,-5 11,-9 19,-9 v32 c-8,0 -13,3 -19,8 -6,-5 -11,-8 -19,-8 V61 Z" />
+        <path android:fillColor="#00000000" android:strokeColor="#FFFFFF"
+            android:strokeWidth="3" android:strokeLineCap="round"
+            android:pathData="M64,72 v25" />
+        <path android:fillColor="#FFFFFF"
+            android:pathData="M105,27 a5,5 0,1 1,-10 0 a5,5 0,1 1,10 0 Z" />
+    </group>
+</vector>

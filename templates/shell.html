@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>CyberAudio Hub</title>
+    <meta name="theme-color" content="#0d041a">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static',filename='assets/favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/shell.css',v='20260910-3') }}">
+    <link rel="stylesheet" href="{{ url_for('static',filename='css/speed-control.css',v='20260910-3') }}">
+    <script defer src="{{ url_for('static',filename='js/playback-core.js',v='20260910-3') }}"></script>
+    <script defer src="{{ url_for('static',filename='js/shell.js',v='20260910-3') }}"></script>
+</head>
+<body>
+    <section class="global-player" id="global-player" aria-label="Текущая аудиокнига" hidden>
+        <button class="global-player__book" id="global-open" aria-label="Вернуться к книге">
+            <img id="global-cover" alt=""><span><strong id="global-title"></strong><small id="global-chapter"></small></span>
+        </button>
+        <div class="global-player__controls">
+            <button id="global-rewind" aria-label="На 5 секунд назад">−5</button>
+            <button id="global-play" class="global-player__play" aria-label="Пауза">Ⅱ</button>
+            <button id="global-forward" aria-label="На 5 секунд вперёд">+5</button>
+            <select id="global-speed" aria-label="Скорость воспроизведения">
+                {% for rate in [1, 1.25, 1.5, 2, 2.5, 3] %}<option value="{{ rate }}">×{{ rate }}</option>{% endfor %}
+            </select>
+        </div>
+        <button id="global-close" class="global-player__close" aria-label="Остановить воспроизведение и закрыть плеер">×</button>
+    </section>
+    <iframe id="site-frame" title="CyberAudio Hub — содержимое сайта" data-src="{{ frame_url }}" allow="autoplay; fullscreen"></iframe>
+    <audio id="persistent-audio" preload="metadata"></audio>
+    <noscript><a href="{{ frame_url }}">Открыть сайт без общего плеера</a></noscript>
+</body>
+</html>

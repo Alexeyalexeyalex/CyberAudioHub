@@ -18,15 +18,17 @@ import java.util.concurrent.Executors;
 /**
  * Вход и регистрация.
  *
- * Первым делом спрашиваем адрес сервера: медиатека своя, домашняя, и никакого
- * «облака по умолчанию» у приложения нет. Адрес запоминается, дальше человек
- * его не видит.
+ * Адрес сервера задан по умолчанию. Шестерёнка доступна до авторизации,
+ * чтобы подключиться к другому серверу, не вводя адрес при каждом входе.
  */
 public class MainActivity extends AppCompatActivity {
 
+    public static final String EXTRA_REAUTH = "reauth";
+
     private final ExecutorService pool = Executors.newSingleThreadExecutor();
     private Api api;
-    private EditText serverField;
+    private android.widget.ImageButton settings;
+    private String shownServer;
     private EditText loginField;
     private EditText nickField;
     private EditText passwordField;
@@ -39,8 +41,15 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         api = new Api(this);
+        shownServer = api.server();
 
         LinearLayout box = Ui.column(this);
+        LinearLayout top = Ui.row(this);
+        top.addView(Ui.label(this, "CyberAudio Hub", Ui.TEXT, 18), new LinearLayout.LayoutParams(0, -2, 1));
+        settings = Ui.roundButton(this, R.drawable.ic_gear, Ui.DIM, 48, "Настройки сервера");
+        settings.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
+        top.addView(settings);
+        Ui.add(box, top, 16);
         LinearLayout welcome = new LinearLayout(this);
         welcome.setOrientation(LinearLayout.VERTICAL);
         welcome.setBackground(Ui.hero(this));
@@ -50,10 +59,6 @@ public class MainActivity extends AppCompatActivity {
         Ui.add(welcome, Ui.title(this, "Мир за пределами обычного."), 14);
         Ui.add(welcome, Ui.label(this, "Любимые книги. Ваш ритм.", Ui.DIM, 15), 0);
         Ui.add(box, welcome, 26);
-
-        serverField = Ui.field(this, "Адрес сервера, например 192.168.1.5:2077");
-        serverField.setText(api.server());
-        Ui.add(box, serverField, 12);
 
         loginField = Ui.field(this, "Логин");
         Ui.add(box, loginField, 12);
@@ -92,7 +97,7 @@ public class MainActivity extends AppCompatActivity {
         Ui.screen(this, scroll, -1);
 
         // Уже входили — сразу на полку, спрашивать пароль второй раз незачем
-        if (api.hasServer() && api.isSignedIn()) {
+        if (api.isSignedIn() && !intentRequestsLogin()) {
             openShelf();
         }
     }
@@ -106,38 +111,41 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void send() {
-        String server = serverField.getText().toString().trim();
         String login = loginField.getText().toString().trim();
         String nick = nickField.getText().toString().trim();
         String password = passwordField.getText().toString();
 
-        if (server.isEmpty()) {
-            message.setText("Укажите адрес сервера");
-            return;
-        }
         if (login.isEmpty() || password.isEmpty()) {
             message.setText("Заполните логин и пароль");
             return;
         }
 
-        api.setServer(server);
         submit.setEnabled(false);
+        settings.setEnabled(false);
+        switchMode.setEnabled(false);
+        final boolean createAccount = registering;
         message.setText("Соединяюсь...");
 
         pool.execute(() -> {
             String error = null;
             try {
-                if (registering) {
+                if (createAccount) {
                     api.register(login, nick.isEmpty() ? login : nick, password);
                 } else {
                     api.login(login, password);
+                }
+                if (api.me().optJSONObject("user") == null) {
+                    throw new Api.ApiException("Сервер не сохранил вход. Проверьте адрес и повторите вход.", 401);
                 }
             } catch (Exception e) {
                 error = Api.describe(e);
             }
             String finalError = error;
             runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
                 submit.setEnabled(true);
+                settings.setEnabled(true);
+                switchMode.setEnabled(true);
                 if (finalError == null) {
                     openShelf();
                 } else {
@@ -148,8 +156,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void openShelf() {
-        startActivity(new Intent(this, ShelfActivity.class));
+        // Login is an account boundary: discard guest/offline screens as well
+        // as this form, so system Back cannot reveal a stale pre-login screen.
+        // Only Activities are cleared; the session, downloads and service stay.
+        startActivity(new Intent(this, ShelfActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
         finish();
+    }
+
+    private boolean intentRequestsLogin() { return getIntent().getBooleanExtra(EXTRA_REAUTH, false); }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (!shownServer.equals(api.server())) {
+            shownServer = api.server();
+            passwordField.setText("");
+            message.setText("Сервер изменён. Введите пароль для входа.");
+        }
     }
 
     @Override

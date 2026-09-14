@@ -43,6 +43,7 @@ public final class Transcripts {
         final int[] track;
         /** Заголовки глав: {начало, конец, номер главы}. Пусто вне режима книги. */
         final int[][] heads;
+        public final int[][] rows;
 
         Timeline(String text, int[] from, int[] to,
                  double[] since, double[] until, int[] track, int[][] heads) {
@@ -53,6 +54,20 @@ public final class Transcripts {
             this.until = until;
             this.track = track;
             this.heads = heads;
+            java.util.List<int[]> paragraphs = new java.util.ArrayList<>();
+            for (int start = 0; start < text.length();) {
+                int end = text.indexOf("\n\n", start);
+                if (end < 0) end = text.length();
+                while (end - start > 800) {
+                    int cut = text.lastIndexOf(' ', start + 800);
+                    if (cut <= start) cut = start + 800;
+                    paragraphs.add(new int[]{start, cut}); start = cut;
+                    while (start < end && text.charAt(start) == ' ') start++;
+                }
+                if (end > start) paragraphs.add(new int[]{start, end});
+                start = end + 2;
+            }
+            rows = paragraphs.toArray(new int[0][]);
         }
 
         public int headings() {
@@ -71,19 +86,18 @@ public final class Transcripts {
         /**
          * Границы слова, которое звучит в этот момент, или null в паузе.
          *
-         * Перебор линейный: слов в главе тысячи, но проверка — два
-         * сравнения, и на каждом тике это доли миллисекунды. Двоичный
-         * поиск здесь усложнил бы код без заметной пользы.
+         * Двоичный поиск по главе и времени: стоимость тика не растёт
+         * линейно с размером книги, даже если в ней сотни тысяч слов.
          */
         public int[] wordAt(int chapter, double seconds) {
-            for (int i = 0; i < from.length; i++) {
-                if (track[i] != chapter) continue;
-                if (seconds >= since[i] && seconds <= until[i]) {
-                    return new int[]{from[i], to[i]};
-                }
-                // Внутри главы слова идут по возрастанию времени
-                if (track[i] == chapter && since[i] > seconds) break;
+            int lo = 0, hi = from.length;
+            while (lo < hi) {
+                int mid = (lo + hi) >>> 1;
+                if (track[mid] < chapter || (track[mid] == chapter && until[mid] < seconds)) lo = mid + 1;
+                else hi = mid;
             }
+            if (lo < from.length && track[lo] == chapter && since[lo] <= seconds)
+                return new int[]{from[lo], to[lo]};
             return null;
         }
 
@@ -93,24 +107,34 @@ public final class Transcripts {
          * перечитывает то, что уже прозвучало.
          */
         public int spokenUntil(int chapter, double seconds) {
-            int edge = 0;
-            for (int i = 0; i < from.length; i++) {
-                boolean past = track[i] < chapter
-                        || (track[i] == chapter && until[i] <= seconds);
-                if (!past) break;
-                edge = to[i];
+            int lo = 0, hi = from.length;
+            while (lo < hi) {
+                int mid = (lo + hi) >>> 1;
+                if (track[mid] < chapter || (track[mid] == chapter && until[mid] <= seconds)) lo = mid + 1;
+                else hi = mid;
             }
-            return edge;
+            return lo == 0 ? 0 : to[lo - 1];
         }
 
         /** Куда перематывать, если ткнуть в это место текста. */
         public double[] timeAt(int offset) {
-            for (int i = 0; i < from.length; i++) {
-                if (offset >= from[i] && offset <= to[i]) {
-                    return new double[]{track[i], since[i]};
-                }
+            int lo = 0, hi = from.length;
+            while (lo < hi) {
+                int mid = (lo + hi) >>> 1;
+                if (from[mid] <= offset) lo = mid + 1; else hi = mid;
             }
+            int i = lo - 1;
+            if (i >= 0 && offset <= to[i]) return new double[]{track[i], since[i]};
             return null;
+        }
+
+        public int rowAt(int offset) {
+            int lo = 0, hi = rows.length;
+            while (lo < hi) {
+                int mid = (lo + hi) >>> 1;
+                if (rows[mid][0] <= offset) lo = mid + 1; else hi = mid;
+            }
+            return Math.max(0, lo - 1);
         }
     }
 

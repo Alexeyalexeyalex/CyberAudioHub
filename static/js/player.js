@@ -1,6 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
     const playerContainer = document.getElementById('player-container');
-    const audioPlayer = document.getElementById('audio-player');
+    const shared = window.CyberPlayback;
+    const audioPlayer = shared ? shared.audio : document.getElementById('audio-player');
+    const audioEvents = new AbortController();
+    const listenAudio = (name, fn, options = {}) => audioPlayer.addEventListener(name, fn, {...options, signal: audioEvents.signal});
+    let disposed = false;
     const backButton = document.getElementById('back-button');
     const API_ENDPOINT = '/api/browse';
     // Прогресс гостя хранится в localStorage, владелец ключа — auth.js
@@ -26,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ]);
             if (!response.ok) throw new Error('Альбом не найден или произошла ошибка.');
             const currentAlbum = await response.json();
+            if (disposed) return;
 
             if (currentAlbum.type !== 'album') {
                 playerContainer.innerHTML = '<h2>ОШИБКА: УКАЗАННЫЙ ПУТЬ НЕ ЯВЛЯЕТСЯ АЛЬБОМОМ</h2>';
@@ -39,8 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // --- Состояние плеера ---
-            let currentTrackIndex = 0;
-            let isShuffle = false;
+            const sessionAttached = shared && shared.state.path === albumPath && Boolean(audioPlayer.getAttribute('src'));
+            let currentTrackIndex = sessionAttached ? shared.state.index : 0;
             let lastSaveAt = -Infinity;
             let textMode = false;
             let transcriptState = currentAlbum.transcript || { ready: false };
@@ -82,7 +87,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="progress-container" id="progress-container"><div class="progress-bar" id="progress-bar"></div></div>
                         <div class="time-stamps"><span id="current-time">0:00</span><span id="total-duration">0:00</span></div>
                         <div class="player-controls">
-                            <button class="control-btn shuffle-btn" id="shuffle-btn" title="Перемешать"><i class="fas fa-shuffle"></i></button>
+                            <select class="control-btn speed-select" id="speed-select" aria-label="Скорость воспроизведения" title="Скорость воспроизведения">
+                                <option value="1">×1</option><option value="1.25">×1.25</option><option value="1.5">×1.5</option><option value="2">×2</option><option value="2.5">×2.5</option><option value="3">×3</option>
+                            </select>
                             <button class="control-btn" id="prev-btn" title="Предыдущий трек"><i class="fas fa-backward-step"></i></button>
                             <button class="control-btn seek-btn" id="rewind-btn" title="-5 секунд"><i class="fas fa-rotate-left"></i></button>
                             <button class="control-btn play-btn" id="play-btn" title="Воспроизвести/Пауза"><i class="fas fa-play" id="play-icon"></i></button>
@@ -142,11 +149,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             function loadTrack(index) {
                 const track = currentAlbum.tracks[index];
-                audioPlayer.src = track.url;
+                if (shared) shared.select(albumPath, currentAlbum, index);
+                else audioPlayer.src = track.url;
                 document.getElementById('current-track-title').textContent = prettyName(track.name);
                 document.getElementById('progress-bar').style.width = '0%';
-                document.getElementById('current-time').textContent = '0:00';
-                document.getElementById('total-duration').textContent = '0:00';
+                document.getElementById('current-time').textContent = formatTime(audioPlayer.currentTime);
+                document.getElementById('total-duration').textContent = formatTime(audioPlayer.duration);
                 updateTrackListHighlight();
                 updateMediaSessionMetadata();
                 updateBookRemaining();
@@ -188,6 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             function playTrack() {
+                if (shared) { shared.select(albumPath, currentAlbum, currentTrackIndex); shared.play(); return; }
                 const p = audioPlayer.play();
                 if (p && typeof p.catch === 'function') {
                     p.catch(err => console.warn('Не удалось начать воспроизведение:', err));
@@ -209,13 +218,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             function nextTrack() {
-                if (isShuffle) {
-                    let newIndex;
-                    do { newIndex = Math.floor(Math.random() * currentAlbum.tracks.length); } while (newIndex === currentTrackIndex && currentAlbum.tracks.length > 1);
-                    currentTrackIndex = newIndex;
-                } else {
-                    currentTrackIndex = (currentTrackIndex + 1) % currentAlbum.tracks.length;
-                }
+                if (shared) { shared.next(); return; }
+                currentTrackIndex = (currentTrackIndex + 1) % currentAlbum.tracks.length;
                 loadTrack(currentTrackIndex);
                 playTrack();
             }
@@ -296,6 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             function saveState() {
+                if (shared) { if (shared.state.path === albumPath) shared.save(); return; }
                 if (!audioPlayer.currentTime) return;
                 const entry = { trackIndex: currentTrackIndex, position: audioPlayer.currentTime };
                 localStore.set(albumPath, entry);
@@ -316,6 +321,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             async function restoreState() {
+                if (sessionAttached) { updateBookRemaining(); return; }
                 let saved = null;
 
                 if (window.CyberAuth.isLoggedIn()) {
@@ -333,16 +339,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     saved = localStore.get(albumPath);
                 }
-                if (!saved || !currentAlbum.tracks[saved.trackIndex]) return;
+                if (disposed || !saved || !currentAlbum.tracks[saved.trackIndex]) return;
 
                 currentTrackIndex = saved.trackIndex;
                 loadTrack(currentTrackIndex);
                 lastSaveAt = saved.position;
-                audioPlayer.oncanplay = () => {
+                const restorePosition = () => {
                     audioPlayer.currentTime = saved.position;
                     audioPlayer.oncanplay = null;
                     updateBookRemaining();
                 };
+                if (audioPlayer.readyState >= 1) restorePosition();
+                else audioPlayer.oncanplay = restorePosition;
             }
 
             /**
@@ -361,6 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const measured = [];
 
                 for (const track of currentAlbum.tracks) {
+                    if (disposed) break;
                     const duration = await new Promise((resolve) => {
                         let settled = false;
                         const finish = (value) => {
@@ -369,18 +378,22 @@ document.addEventListener('DOMContentLoaded', () => {
                             clearTimeout(timer);
                             probe.removeEventListener('loadedmetadata', onMeta);
                             probe.removeEventListener('error', onError);
+                            audioEvents.signal.removeEventListener('abort', onAbort);
                             resolve(value);
                         };
                         const onMeta = () => finish(probe.duration);
                         const onError = () => finish(0);
+                        const onAbort = () => { finish(0); probe.removeAttribute('src'); probe.load(); };
                         const timer = setTimeout(() => finish(0), 15000);
                         probe.addEventListener('loadedmetadata', onMeta);
                         probe.addEventListener('error', onError);
+                        audioEvents.signal.addEventListener('abort', onAbort, {once:true});
                         probe.src = track.url;
                     });
                     measured.push(isFinite(duration) && duration > 0 ? duration : 0);
                 }
-                probe.src = '';
+                probe.removeAttribute('src'); probe.load();
+                if (disposed) return;
 
                 trackDurations = measured;
                 updateBookRemaining();
@@ -401,6 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
              * получают явные обработчики, а не «угадывают» поведение страницы.
              */
             function setupMediaSession() {
+                if (shared) return;
                 if (!('mediaSession' in navigator)) return;
                 const handlers = {
                     play: playTrack,
@@ -420,6 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             function updateMediaSessionMetadata() {
+                if (shared) return;
                 if (!('mediaSession' in navigator) || !window.MediaMetadata) return;
                 const track = currentAlbum.tracks[currentTrackIndex];
                 navigator.mediaSession.metadata = new MediaMetadata({
@@ -710,6 +725,7 @@ document.addEventListener('DOMContentLoaded', () => {
              * достижения. Решение принимает сервер, здесь только повод.
              */
             function maybeClaimAchievement() {
+                if (shared) return;
                 if (!window.CyberAuth || !CyberAuth.isLoggedIn()) return;
                 const left = audioPlayer.duration - audioPlayer.currentTime;
                 if (!Number.isFinite(left) || left > CLAIM_TAIL || left < 0) return;
@@ -755,15 +771,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                const prevLine = activeWord >= 0 ? wordIndex[activeWord].line : null;
                 activeWord = index;
 
                 if (index >= 0 && follow && Date.now() > followPausedUntil) {
-                    // Прокручиваем только при переходе на новую строку, иначе
-                    // страница дёргалась бы на каждом слове
-                    const line = wordIndex[index].line;
-                    if (line !== prevLine || force) {
-                        line.scrollIntoView({ behavior: force ? 'auto' : 'smooth', block: 'center' });
+                    // Видимая область начинается под закреплённым меню, а не
+                    // у края окна. Высокий тулбар на 320px не накрывает слово.
+                    const mini = document.getElementById('mini-player');
+                    const options = document.getElementById('reader-options');
+                    const top = Math.max(mini.getBoundingClientRect().bottom,
+                        options && !options.hidden ? options.getBoundingClientRect().bottom : 0);
+                    const word = wordIndex[index].el.getBoundingClientRect();
+                    if (force || word.top < top + 12 || word.bottom > innerHeight - 28) {
+                        const target = top + Math.max(24, (innerHeight - top) * .35);
+                        const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+                        window.scrollTo({top: Math.max(0, window.scrollY + word.top - target),
+                            behavior: force || reduced ? 'auto' : 'smooth'});
                     }
                 }
             }
@@ -1014,28 +1036,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('next-btn').addEventListener('click', nextTrack);
                 document.getElementById('rewind-btn').addEventListener('click', () => seek(-5));
                 document.getElementById('forward-btn').addEventListener('click', () => seek(5));
-                document.getElementById('shuffle-btn').addEventListener('click', (e) => {
-                    isShuffle = !isShuffle;
-                    e.currentTarget.classList.toggle('active', isShuffle);
-                    e.currentTarget.setAttribute('aria-pressed', String(isShuffle));
-                });
+                const syncSpeed = () => {
+                    for (const id of ['speed-select','reader-speed']) {
+                        const control = document.getElementById(id);
+                        if (control) control.value = String(audioPlayer.playbackRate);
+                    }
+                };
+                for (const id of ['speed-select','reader-speed']) {
+                    document.getElementById(id)?.addEventListener('change', event => {
+                        const rate = Number(event.target.value);
+                        if (shared) shared.setRate(rate); else audioPlayer.playbackRate = rate;
+                        syncSpeed();
+                    });
+                }
+                listenAudio('ratechange', syncSpeed);
+                syncSpeed();
 
                 // Кнопка следует за реальным состоянием аудио, откуда бы им ни управляли
-                audioPlayer.addEventListener('play', syncPlayButton);
-                audioPlayer.addEventListener('playing', syncPlayButton);
-                audioPlayer.addEventListener('pause', syncPlayButton);
-                audioPlayer.addEventListener('ended', syncPlayButton);
-                audioPlayer.addEventListener('emptied', syncPlayButton);
+                listenAudio('play', syncPlayButton);
+                listenAudio('playing', syncPlayButton);
+                listenAudio('pause', syncPlayButton);
+                listenAudio('ended', syncPlayButton);
+                listenAudio('emptied', syncPlayButton);
 
-                audioPlayer.addEventListener('timeupdate', updateProgress);
+                listenAudio('timeupdate', updateProgress);
                 // На паузе rAF не крутится, но перемотка всё равно должна
                 // передвинуть подсветку и полосу мини-плеера
-                audioPlayer.addEventListener('seeked', () => {
+                listenAudio('seeked', () => {
                     if (textMode) { highlight(true); updateMiniPlayer(); }
                 });
-                audioPlayer.addEventListener('ended', nextTrack);
-                audioPlayer.addEventListener('pause', saveState);
-                window.addEventListener('pagehide', saveState);
+                if (!shared) listenAudio('ended', nextTrack);
+                listenAudio('pause', saveState);
+                window.addEventListener('pagehide', () => {
+                    saveState(); disposed = true; stopTicking(); audioEvents.abort();
+                    miniSizeWatcher?.disconnect();
+                    audioPlayer.onloadedmetadata = null; audioPlayer.oncanplay = null;
+                    unsubscribe?.();
+                }, {once:true});
 
                 document.getElementById('progress-container').addEventListener('click', setProgress);
 
@@ -1062,16 +1099,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Пробел / стрелки для управления с клавиатуры
                 document.addEventListener('keydown', (e) => {
-                    if (e.target.closest('button, a, input, textarea')) return;
+                    if (e.target.closest('button, a, input, textarea, select')) return;
                     if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
                     else if (e.code === 'ArrowRight') { e.preventDefault(); seek(5); }
                     else if (e.code === 'ArrowLeft') { e.preventDefault(); seek(-5); }
                 });
             }
 
+            const unsubscribe = shared?.subscribe(type => {
+                if (disposed || shared.state.path !== albumPath) return;
+                if (type === 'track') { currentTrackIndex = shared.state.index; loadTrack(currentTrackIndex); }
+            });
+
             // --- Инициализация ---
             loadPlayerUI();
             await restoreState();
+            if (disposed) return;
 
             // Возвращаем режим чтения, если пользователь ушёл со страницы в нём
             let wantText = false;

@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% include '_design_head.html' %}
+    <script defer src="{{ url_for('static', filename='js/table-columns.js', v='20260910-3') }}"></script>
 </head>
 
 <body>
@@ -342,8 +343,8 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/themes.js', v='20260909-2') }}"></script>
+    <script src="{{ url_for('static', filename='js/auth.js', v='20260910-3') }}"></script>
+    <script src="{{ url_for('static', filename='js/themes.js', v='20260910-3') }}"></script>
     <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 </body>
 

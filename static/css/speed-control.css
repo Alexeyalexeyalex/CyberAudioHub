@@ -1,0 +1,30 @@
+/* Shared by the page player, reader toolbar and persistent mini-player. */
+.speed-select, .control-btn.speed-select, #global-speed {
+    box-sizing: border-box;
+    display: inline-block;
+    flex: 0 0 auto;
+    width: 88px;
+    min-width: 88px;
+    max-width: none;
+    height: 44px;
+    min-height: 44px;
+    margin: 0;
+    padding: 0 26px 0 12px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    appearance: none;
+    font: 600 14px/normal system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+    text-align: left;
+    text-transform: none;
+    color: #f0eef7;
+    color-scheme: dark;
+    background: #2a2237 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%23b8aec8' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 9px center;
+    box-shadow: none;
+    transform: none;
+    cursor: pointer;
+}
+.speed-select:hover, .control-btn.speed-select:hover, #global-speed:hover { background-color: #342a43; transform: none; }
+.speed-select:focus-visible, #global-speed:focus-visible { outline: 2px solid #00f2ff; outline-offset: 2px; }
+.speed-select option, #global-speed option { color: #f0eef7; background: #21192d; font: inherit; }

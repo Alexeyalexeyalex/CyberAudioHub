@@ -236,7 +236,17 @@ main, .player-page, .admin-page {
 .panel-btn:disabled, button:disabled { cursor: not-allowed; opacity: 0.45; }
 .auth-modal { border: 1px solid var(--stroke); clip-path: none; border-radius: 22px; background: var(--surface-3); box-shadow: 0 24px 80px #0009; }
 .auth-modal h2 { text-shadow: none; color: var(--text-color); }
-.auth-modal__close, .user-panel__close { width: 44px; height: 44px; border-radius: 10px; }
+.auth-modal__close, .user-panel__close { width: 44px; height: 44px; min-width: 44px; min-height: 44px; border-radius: 10px; padding: 0; display: grid; place-items: center; line-height: 1; box-sizing: border-box; transform: none; flex-shrink: 0; z-index: 2; }
+.auth-modal__close > *, .user-panel__close > * { pointer-events: none; margin: 0; transform: none; line-height: 1; }
+.auth-modal__close:hover, .user-panel__close:hover { background: #ffffff12; color: var(--primary-color); opacity: 1; transform: none; }
+.admin-table.is-resizable { table-layout: fixed; }
+.admin-table.is-resizable th { position: sticky; }
+.admin-table.is-resizable :is(th, td) { white-space: normal; overflow-wrap: anywhere; }
+.admin-table.is-resizable input { min-width: 0; max-width: 100%; }
+.column-resizer { position: absolute; top: 0; bottom: 0; right: 0; width: 12px; cursor: col-resize; touch-action: none; z-index: 3; }
+.column-resizer::after { content: ''; position: absolute; top: 20%; bottom: 20%; right: 1px; width: 2px; border-radius: 2px; background: #ffffff30; }
+.column-resizer:hover::after, .column-resizer:focus-visible::after { background: var(--primary-color); }
+body.is-resizing-columns { cursor: col-resize; user-select: none; }
 .auth-form input, .user-panel input, .ui-dialog input, .admin-form input, .admin-form select, .admin-form textarea { border-radius: 10px; background: #0e0917; border-color: var(--stroke); min-height: 44px; }
 .auth-tabs { border-color: var(--stroke-soft); }
 .auth-tab { font-size: 14px; letter-spacing: 0; text-transform: none; text-shadow: none; }
@@ -275,7 +285,7 @@ body.is-text-mode .player-page { padding-top: 16px; }
 
 /* Secondary screens use the same surface hierarchy. */
 .admin-header { margin: 0 0 28px; text-align: left; }
-.admin-header h1 { font-size: clamp(28px, 3.5vw, 44px); line-height: 1.15; margin: 12px 0; text-align: left; }
+.admin-header h1 { font-size: clamp(28px, 3.5vw, 44px); line-height: 1.15; margin: 12px 0; text-align: left; color: var(--text-color); text-shadow: none; letter-spacing: -.8px; }
 .admin-header .subtitle, .page-description { font-size: 13px; color: var(--text-secondary); text-shadow: none; text-transform: none; letter-spacing: 0; padding: 0; }
 .admin-section, .stats-card { background: var(--surface-1); border: 1px solid var(--stroke-soft); border-radius: 18px; box-shadow: none; clip-path: none; backdrop-filter: none; }
 .admin-section__head { flex-wrap: wrap; gap: 12px; }
@@ -390,7 +400,7 @@ body.is-text-mode .player-page { padding-top: 16px; }
     #play-btn { grid-area: 1 / 3; width: 52px; height: 52px; }
     #forward-btn { grid-area: 1 / 4; }
     #next-btn { grid-area: 1 / 5; }
-    #shuffle-btn { grid-area: 2 / 1; }
+    #speed-select { grid-area: 2 / 1 / 3 / 3; justify-self: start; }
     #text-btn, #request-text-btn { grid-area: 2 / 5; }
     .track-list { max-height: 340px; }
     .track-item { padding: 10px 7px; }
@@ -470,6 +480,17 @@ body.is-text-mode .player-page { padding-top: 16px; }
    start below it, so a changed checkbox can never cover the profile controls. */
 body.is-text-mode { --reader-chrome-height: calc(env(safe-area-inset-top, 0px) + 66px); }
 body.is-text-mode .player-page { padding-top: var(--reader-chrome-height); }
+body.is-text-mode .player-page::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: var(--sidebar-width);
+    right: 0;
+    height: var(--reader-chrome-height);
+    z-index: 118;
+    pointer-events: none;
+    background: var(--dark-bg);
+}
 body.is-text-mode .back-button {
     position: fixed;
     top: max(10px, env(safe-area-inset-top, 0px));
@@ -561,7 +582,7 @@ body.is-text-mode .transcript-toolbar {
 .social-overview { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
 .achievements-controls { justify-content: space-between; padding: 18px 22px; border: 0; margin-bottom: 24px; }
 .achievements-controls select { min-height: 44px; padding: 8px 14px; background: #ffffff08; border: 1px solid var(--stroke-soft); }
-button.achievement-group__title { padding: 18px 20px; border: 0; border-radius: 14px; background: var(--surface-2); color: var(--text-color); font: 600 16px/1.5 inherit; text-transform: none; letter-spacing: 0; text-align: left; box-shadow: none; overflow-wrap: anywhere; }
+button.achievement-group__title { padding: 18px 20px; border: 0; border-radius: 14px; background: var(--surface-2); color: var(--text-color); font-family: inherit; font-size: 16px; font-weight: 600; line-height: 1.5; text-transform: none; letter-spacing: 0; text-align: left; box-shadow: none; overflow-wrap: anywhere; }
 .achievement-group__title > i { color: #bd9dcf; font-size: 14px; }
 .achievement-group__count { margin-left: auto; background: #00f2ff0d; color: #8bd5da; padding: 4px 9px; }
 .achievement { padding: 18px; border: 1px solid var(--stroke-soft); background: linear-gradient(135deg, #ffffff03, transparent), var(--surface-1); gap: 16px; }
@@ -585,12 +606,15 @@ button.achievement-group__title { padding: 18px 20px; border: 0; border-radius: 
     .navigation-links.has-admin { grid-template-columns: repeat(5, minmax(0, 1fr)); }
     .navigation-link--admin { margin-top: 0; }
     body.is-text-mode .back-button { left: 16px; }
+    body.is-text-mode .player-page::before { left: 0; }
     .friend-row { grid-template-columns: 44px minmax(0, 1fr); padding: 16px; gap: 12px; }
     .friend-avatar { width: 44px; height: 44px; border-radius: 15px; }
     .friend-row__actions { grid-column: 1 / -1; }
 }
 @media (max-width: 520px) {
     .admin-section { padding: 18px 16px; }
+    .mini-player { padding-left: 6px; padding-right: 6px; }
+    .mini-player__controls { flex-wrap: nowrap; gap: 0; min-width: 0; }
     .admin-section__head h2 { font-size: 19px; }
     .achievements-summary, .social-overview { padding: 22px 18px; border-radius: 20px; gap: 16px; }
     .social-overview .eyebrow { font-size: 8px; letter-spacing: 1px; }
@@ -665,6 +689,15 @@ body.theme-spring .audio-orbit__ring { border-color: #c6e5a844; box-shadow: 0 0 
 body.theme-spring .audio-orbit__disc { background: radial-gradient(ellipse at 62% 18%, #abd28a26, transparent 48%), repeating-radial-gradient(circle at center, transparent 0 10px, #efffc209 11px 12px), #26362d; }
 .theme-garden-light { position: absolute; inset: -20%; background: linear-gradient(120deg, transparent 22%, #f3e6a413 36%, transparent 48%, #b6f6b011 72%, transparent 82%); transform: rotate(-8deg); animation: season-drift 22s ease-in-out infinite alternate; }
 @keyframes season-drift { to { transform: translate3d(3%, 3%, 0) rotate(5deg); opacity: .65; } }
+body:is(.theme-newyear, .theme-valentine, .theme-spring) .library-hero::after { background-position: right center; background-repeat: no-repeat; background-size: auto 100%; }
+body.theme-newyear .library-hero::after { background-image: url('../assets/season-newyear.svg'); }
+body.theme-valentine .library-hero::after { background-image: url('../assets/season-valentine.svg'); }
+body.theme-spring .library-hero::after { background-image: url('../assets/season-spring.svg'); }
+.library-hero__copy, .audio-orbit { z-index: 1; }
+.library-hero__copy { position: relative; }
+@media (max-width: 520px) {
+    body:is(.theme-newyear, .theme-valentine, .theme-spring) .library-hero::after { background-position: right bottom; background-size: auto 60%; opacity: .75; }
+}
 
 /* ========================================================================
    ХЭЛЛОУИН: кинематографичный наблюдатель и щупальца управления.

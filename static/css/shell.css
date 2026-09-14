@@ -1,0 +1,25 @@
+:root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; background: #0d041a; color: #f0eef7; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+#site-frame { width: 100%; border: 0; flex: 1; min-height: 0; background: #0d041a; }
+.global-player { flex: none; display: flex; align-items: center; gap: 20px; padding: 8px max(16px, env(safe-area-inset-right)); background: #1d162bf7; border-bottom: 1px solid #e6acf01c; }
+.global-player[hidden] { display: none; }
+button, select { font: inherit; color: inherit; border: 0; border-radius: 12px; background: #ffffff08; min-width: 44px; height: 44px; cursor: pointer; padding: 0 8px; }
+button:hover, select:hover { background: #ffffff16; }
+button:focus-visible, select:focus-visible { outline: 2px solid #00f2ff; outline-offset: 2px; }
+.global-player__book { display: flex; flex: 1; align-items: center; gap: 12px; text-align: left; min-width: 0; background: transparent; height: auto; padding: 0; }
+.global-player__book img { height: 44px; width: 44px; object-fit: cover; border-radius: 10px; }
+.global-player__book span { min-width: 0; }
+.global-player__book strong, .global-player__book small { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.global-player__book strong { font-size: 14px; }
+.global-player__book small { margin-top: 4px; font-size: 11px; color: #a7a1b8; }
+.global-player__controls { display: flex; align-items: center; gap: 6px; }
+.global-player__controls .global-player__play { background: #00f2ff; color: #0d041a; border-radius: 50%; }
+.global-player__close { font-size: 26px; display: grid; place-items: center; padding: 0; flex-shrink: 0; }
+@media(max-width:600px) {
+    .global-player { display: grid; grid-template-columns: minmax(0,1fr) 44px; gap: 6px 10px; padding: 8px 12px; }
+    .global-player__controls { grid-row: 2; grid-column: 1/-1; justify-content: center; }
+    .global-player__close { grid-column: 2; grid-row: 1; }
+    .global-player__book img { width: 36px; height: 36px; }
+}
